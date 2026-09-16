@@ -11,19 +11,8 @@ import { SignupPage } from './pages/auth/SignupPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { AuthCallbackPage } from './pages/auth/AuthCallbackPage';
 import { OnboardingPage } from './pages/onboarding/OnboardingPage';
-
-// Customer QR public flow placeholder
-const CustomerRoutePlaceholder = () => {
-  const { businessSlug } = useParams();
-  return (
-    <PlaceholderPage
-      title={`Customer Review Experience for "${businessSlug}"`}
-      description="Interactive QR-driven feedback flow: 1-5 star ratings, positive/negative topic tags, assisted review drafting, and seamless Google redirect."
-      phase={6}
-      route={`/r/${businessSlug}`}
-    />
-  );
-};
+import { QRManagementPage } from './pages/dashboard/QRManagementPage';
+import { CustomerRoutePage } from './pages/customer/CustomerRoutePage';
 
 export function App() {
   return (
@@ -117,12 +106,7 @@ export function App() {
               path="/dashboard/qr"
               element={
                 <ProtectedRoute>
-                  <PlaceholderPage
-                    title="QR Code Management"
-                    description="Preview, download high-resolution print-ready QR codes, and manage active customer routing."
-                    phase={5}
-                    route="/dashboard/qr"
-                  />
+                  <QRManagementPage />
                 </ProtectedRoute>
               }
             />
@@ -156,7 +140,7 @@ export function App() {
             />
 
             {/* Public Customer Feedback Route */}
-            <Route path="/r/:businessSlug" element={<CustomerRoutePlaceholder />} />
+            <Route path="/r/:businessSlug" element={<CustomerRoutePage />} />
 
             {/* 404 Fallback */}
             <Route
