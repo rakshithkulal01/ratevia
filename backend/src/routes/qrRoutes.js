@@ -5,12 +5,38 @@ import { env } from '../config/env.js';
 
 const router = Router();
 
+// Helper: Ensure user exists in local PostgreSQL database
+const ensureDbUser = async (req) => {
+  if (req.user?.id) return req.user;
+
+  let dbUser = await prisma.user.findUnique({
+    where: { supabaseUserId: req.user.supabaseUserId },
+  });
+
+  if (!dbUser) {
+    const name = req.user.metadata?.name || req.user.metadata?.full_name || null;
+    dbUser = await prisma.user.create({
+      data: {
+        supabaseUserId: req.user.supabaseUserId,
+        email: req.user.email,
+        name,
+        role: 'BUSINESS_OWNER',
+      },
+    });
+  }
+
+  req.user.id = dbUser.id;
+  return req.user;
+};
+
 /**
  * GET /api/qr
  * Retrieve the active business QR configuration and customer routing URL
  */
 router.get('/', authMiddleware, async (req, res, next) => {
   try {
+    await ensureDbUser(req);
+
     const business = await prisma.business.findFirst({
       where: {
         ownerId: req.user.id,
@@ -70,6 +96,8 @@ router.get('/', authMiddleware, async (req, res, next) => {
  */
 router.post('/regenerate', authMiddleware, async (req, res, next) => {
   try {
+    await ensureDbUser(req);
+
     const business = await prisma.business.findFirst({
       where: {
         ownerId: req.user.id,
@@ -117,6 +145,8 @@ router.post('/regenerate', authMiddleware, async (req, res, next) => {
  */
 router.patch('/toggle', authMiddleware, async (req, res, next) => {
   try {
+    await ensureDbUser(req);
+
     const business = await prisma.business.findFirst({
       where: {
         ownerId: req.user.id,

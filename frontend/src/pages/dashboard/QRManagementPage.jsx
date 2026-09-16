@@ -149,38 +149,40 @@ export const QRManagementPage = () => {
     const canvas = qrCanvasRef.current?.querySelector('canvas');
     if (!canvas) return;
 
-    // Create a higher resolution export canvas for crisp physical printing
+    // Create a high resolution 1024x1024 export canvas for crisp physical printing
     const exportCanvas = document.createElement('canvas');
-    const size = 1200;
-    const padding = 120;
+    const size = 1024;
     exportCanvas.width = size;
-    exportCanvas.height = size + 160;
+    exportCanvas.height = size;
     const ctx = exportCanvas.getContext('2d');
 
     // White background
     ctx.fillStyle = '#FFFFFF';
-    ctx.roundRect(0, 0, exportCanvas.width, exportCanvas.height, 40);
+    ctx.roundRect(0, 0, size, size, 32);
     ctx.fill();
 
     // Subtle border
     ctx.strokeStyle = '#E2E8F0';
     ctx.lineWidth = 4;
-    ctx.roundRect(4, 4, exportCanvas.width - 8, exportCanvas.height - 8, 40);
+    ctx.roundRect(4, 4, size - 8, size - 8, 32);
     ctx.stroke();
 
     // Draw QR code centered
-    ctx.drawImage(canvas, padding, padding, size - padding * 2, size - padding * 2);
+    const qrSize = 720;
+    const qrX = (size - qrSize) / 2;
+    const qrY = 70;
+    ctx.drawImage(canvas, qrX, qrY, qrSize, qrSize);
 
     // Draw Business Name
     ctx.fillStyle = '#0F172A';
-    ctx.font = 'bold 54px Inter, sans-serif';
+    ctx.font = 'bold 44px Inter, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(business?.name || 'Ratevia Review', size / 2, size + 40);
+    ctx.fillText(business?.name || 'Ratevia Review', size / 2, 855);
 
     // Draw Call to Action
     ctx.fillStyle = '#0052FF';
-    ctx.font = '600 36px Inter, sans-serif';
-    ctx.fillText('Scan to Share Your Experience', size / 2, size + 100);
+    ctx.font = '600 28px Inter, sans-serif';
+    ctx.fillText('Scan to Share Your Experience', size / 2, 915);
 
     const link = document.createElement('a');
     link.download = `${business?.slug || 'ratevia'}-review-qr.png`;
