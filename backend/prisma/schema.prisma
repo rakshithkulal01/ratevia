@@ -1,0 +1,126 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  BUSINESS_OWNER
+  ADMIN
+}
+
+enum BusinessType {
+  CAFE
+  RESTAURANT
+  HOTEL
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  EXPIRED
+}
+
+enum EventType {
+  QR_SCANNED
+  FEEDBACK_STARTED
+  RATING_SELECTED
+  REVIEW_GENERATED
+  REVIEW_COPIED
+  GOOGLE_LINK_CLICKED
+}
+
+model User {
+  id             String     @id @default(uuid())
+  supabaseUserId String     @unique
+  name           String?
+  email          String     @unique
+  role           UserRole   @default(BUSINESS_OWNER)
+  createdAt      DateTime   @default(now())
+  businesses     Business[]
+
+  @@map("users")
+}
+
+model Business {
+  id              String           @id @default(uuid())
+  ownerId         String
+  owner           User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name            String
+  businessType    BusinessType
+  googleReviewUrl String
+  slug            String           @unique
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  subscription    Subscription?
+  qrCodes         QRCode[]
+  feedbacks       Feedback[]
+  analyticsEvents AnalyticsEvent[]
+
+  @@index([ownerId])
+  @@index([slug])
+  @@map("businesses")
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  businessId           String             @unique
+  business             Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  status               SubscriptionStatus @default(TRIAL)
+  trialStartsAt        DateTime?
+  trialEndsAt          DateTime?
+  subscriptionStartsAt DateTime?
+  subscriptionEndsAt   DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@map("subscriptions")
+}
+
+model QRCode {
+  id         String   @id @default(uuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([businessId])
+  @@map("qr_codes")
+}
+
+model Feedback {
+  id                  String    @id @default(uuid())
+  businessId          String
+  business            Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  rating              Int
+  selectedTopics      String[]
+  customerMessage     String?
+  generatedReview     String?
+  reviewCopiedAt      DateTime?
+  googleLinkClickedAt DateTime?
+  createdAt           DateTime  @default(now())
+
+  @@index([businessId])
+  @@index([createdAt])
+  @@map("feedbacks")
+}
+
+model AnalyticsEvent {
+  id         String    @id @default(uuid())
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  eventType  EventType
+  sessionId  String?
+  metadata   Json?
+  createdAt  DateTime  @default(now())
+
+  @@index([businessId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("analytics_events")
+}
