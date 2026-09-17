@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
+import { DashboardLayout } from '../../components/dashboard/DashboardLayout';
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -235,7 +236,8 @@ export const QRManagementPage = () => {
   const isActive = qrCode?.active;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8 space-y-10">
+    <DashboardLayout activeTab="qr code">
+      <div className="space-y-8">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/70 pb-6">
         <div>
@@ -450,5 +452,6 @@ export const QRManagementPage = () => {
         </div>
       </div>
     </div>
+    </DashboardLayout>
   );
 };

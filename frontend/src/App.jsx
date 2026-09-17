@@ -1,17 +1,37 @@
 import React from 'react';
-import { Routes, Route, useParams } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Navbar } from './components/ui/Navbar';
 import { Footer } from './components/ui/Footer';
+
+// Marketing & Public Pages
+import { HomePage } from './pages/marketing/HomePage';
+import { PricingPage } from './pages/marketing/PricingPage';
+import { FAQPage } from './pages/marketing/FAQPage';
 import { DesignSystemShowcase } from './pages/DesignSystemShowcase';
 import { PlaceholderPage } from './pages/PlaceholderPage';
+
+// Auth Pages
 import { LoginPage } from './pages/auth/LoginPage';
 import { SignupPage } from './pages/auth/SignupPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { AuthCallbackPage } from './pages/auth/AuthCallbackPage';
+
+// Business Onboarding
 import { OnboardingPage } from './pages/onboarding/OnboardingPage';
+
+// Business Dashboard Pages
+import { DashboardOverviewPage } from './pages/dashboard/DashboardOverviewPage';
+import { AnalyticsPage } from './pages/dashboard/AnalyticsPage';
+import { FeedbackHistoryPage } from './pages/dashboard/FeedbackHistoryPage';
 import { QRManagementPage } from './pages/dashboard/QRManagementPage';
+import { BusinessSettingsPage } from './pages/dashboard/BusinessSettingsPage';
+
+// Admin Control Center
+import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
+
+// Customer Public QR Route
 import { CustomerRoutePage } from './pages/customer/CustomerRoutePage';
 
 export function App() {
@@ -22,35 +42,14 @@ export function App() {
         <main className="flex-1">
           <Routes>
             {/* Public Routes */}
-            <Route path="/" element={<DesignSystemShowcase />} />
+            <Route path="/" element={<HomePage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/faq" element={<FAQPage />} />
+            <Route path="/design-system" element={<DesignSystemShowcase />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
-
-            {/* Informational Public Pages */}
-            <Route
-              path="/pricing"
-              element={
-                <PlaceholderPage
-                  title="Pricing & Free Trial"
-                  description="Ratevia offers a 20-day free trial for local businesses with full feature access and no credit card required."
-                  phase={3}
-                  route="/pricing"
-                />
-              }
-            />
-            <Route
-              path="/faq"
-              element={
-                <PlaceholderPage
-                  title="Frequently Asked Questions"
-                  description="Learn how Ratevia works, QR code placement best practices, Google review compliance, and data privacy."
-                  phase={3}
-                  route="/faq"
-                />
-              }
-            />
 
             {/* Protected Route: Business Onboarding */}
             <Route
@@ -62,17 +61,12 @@ export function App() {
               }
             />
 
-            {/* Protected Route: Business Dashboard */}
+            {/* Protected Routes: Business Dashboard */}
             <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <PlaceholderPage
-                    title="Business Overview Dashboard"
-                    description="Real-time KPI metrics for QR scans, feedback submissions, Google review-link clicks, and average customer ratings."
-                    phase={7}
-                    route="/dashboard"
-                  />
+                  <DashboardOverviewPage />
                 </ProtectedRoute>
               }
             />
@@ -80,12 +74,7 @@ export function App() {
               path="/dashboard/analytics"
               element={
                 <ProtectedRoute>
-                  <PlaceholderPage
-                    title="Analytics & Customer Insights"
-                    description="Recharts visualizations for rating distribution, review trend graphs, and liked vs. improvement topic breakdowns."
-                    phase={7}
-                    route="/dashboard/analytics"
-                  />
+                  <AnalyticsPage />
                 </ProtectedRoute>
               }
             />
@@ -93,12 +82,7 @@ export function App() {
               path="/dashboard/feedback"
               element={
                 <ProtectedRoute>
-                  <PlaceholderPage
-                    title="Customer Feedback History"
-                    description="Historical audit log of all customer reviews, ratings, selected topics, and Google link statuses."
-                    phase={7}
-                    route="/dashboard/feedback"
-                  />
+                  <FeedbackHistoryPage />
                 </ProtectedRoute>
               }
             />
@@ -114,12 +98,7 @@ export function App() {
               path="/dashboard/business"
               element={
                 <ProtectedRoute>
-                  <PlaceholderPage
-                    title="Business Settings"
-                    description="Manage business profile, name, type, and Google Review URL."
-                    phase={7}
-                    route="/dashboard/business"
-                  />
+                  <BusinessSettingsPage />
                 </ProtectedRoute>
               }
             />
@@ -129,12 +108,7 @@ export function App() {
               path="/admin"
               element={
                 <ProtectedRoute>
-                  <PlaceholderPage
-                    title="Admin Control Center"
-                    description="Platform-wide business directory, trial extensions (7/14/30 days), and access management."
-                    phase={8}
-                    route="/admin"
-                  />
+                  <AdminDashboardPage />
                 </ProtectedRoute>
               }
             />

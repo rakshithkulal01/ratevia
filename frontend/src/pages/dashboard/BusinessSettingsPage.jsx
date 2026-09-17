@@ -1,0 +1,267 @@
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import { DashboardLayout } from '../../components/dashboard/DashboardLayout';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import {
+  Settings,
+  Building2,
+  ExternalLink,
+  Save,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Shield,
+  Clock,
+} from 'lucide-react';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const BUSINESS_TYPES = [
+  { value: 'CAFE', label: 'Café' },
+  { value: 'RESTAURANT', label: 'Restaurant' },
+  { value: 'HOTEL', label: 'Hotel' },
+];
+
+export const BusinessSettingsPage = () => {
+  const { session } = useAuth();
+  const [business, setBusiness] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [successMsg, setSuccessMsg] = useState(null);
+
+  // Form fields
+  const [name, setName] = useState('');
+  const [businessType, setBusinessType] = useState('CAFE');
+  const [googleReviewUrl, setGoogleReviewUrl] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    const loadBusiness = async () => {
+      if (!session?.access_token) return;
+      try {
+        setLoading(true);
+        const res = await fetch(`${API_URL}/api/business`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          if (mounted && json.business) {
+            setBusiness(json.business);
+            setName(json.business.name || '');
+            setBusinessType(json.business.businessType || 'CAFE');
+            setGoogleReviewUrl(json.business.googleReviewUrl || '');
+          }
+        } else {
+          if (mounted) setError('Could not load business settings.');
+        }
+      } catch (err) {
+        if (mounted) setError(err.message);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    loadBusiness();
+    return () => {
+      mounted = false;
+    };
+  }, [session]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setSuccessMsg(null);
+
+    // Basic validation
+    if (!name.trim() || name.trim().length < 2) {
+      setError('Business name must be at least 2 characters.');
+      return;
+    }
+
+    if (!googleReviewUrl.trim().startsWith('http://') && !googleReviewUrl.trim().startsWith('https://')) {
+      setError('Google Review URL must begin with http:// or https://');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const res = await fetch(`${API_URL}/api/business`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          businessType,
+          googleReviewUrl: googleReviewUrl.trim(),
+        }),
+      });
+
+      const json = await res.json();
+
+      if (res.ok) {
+        setBusiness(json.business);
+        setSuccessMsg('Business profile settings saved successfully.');
+      } else {
+        setError(json.message || 'Failed to update business profile.');
+      }
+    } catch (err) {
+      setError(err.message || 'A network error occurred.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const sub = business?.subscription;
+
+  return (
+    <DashboardLayout activeTab="settings">
+      <div className="max-w-3xl space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold text-foreground">Business Settings</h2>
+          <p className="text-xs text-muted-foreground">
+            Manage your public business profile, category, and Google Review target link.
+          </p>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 p-3 text-xs bg-red-50 text-red-700 border border-red-200 rounded-lg">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="flex items-center gap-2 p-3 text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Profile Details</CardTitle>
+            <CardDescription className="text-xs">
+              These details are displayed on your customer QR review page.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Business Name */}
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">
+                  Business Name
+                </label>
+                <Input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Coastal Brew Café"
+                  required
+                />
+              </div>
+
+              {/* Business Type */}
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">
+                  Business Category
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  {BUSINESS_TYPES.map((type) => (
+                    <button
+                      key={type.value}
+                      type="button"
+                      onClick={() => setBusinessType(type.value)}
+                      className={`p-3 rounded-lg border text-xs font-medium text-center transition-all ${
+                        businessType === type.value
+                          ? 'border-accent bg-accent/10 text-accent font-semibold'
+                          : 'border-border bg-white text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {type.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Google Review URL */}
+              <div>
+                <label className="block text-xs font-medium text-foreground mb-1">
+                  Google Review URL
+                </label>
+                <Input
+                  type="url"
+                  value={googleReviewUrl}
+                  onChange={(e) => setGoogleReviewUrl(e.target.value)}
+                  placeholder="https://g.page/r/your-business/review"
+                  required
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  The destination link where customers submit their final Google review.
+                </p>
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-2">
+                <Button type="submit" variant="primary" disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving changes...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      Save Settings
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* Read-Only Account Information */}
+        <Card className="p-6 bg-muted/20">
+          <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Shield className="h-4 w-4 text-muted-foreground" />
+            System & Routing Metadata
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div>
+              <span className="text-muted-foreground block mb-0.5">Business Slug:</span>
+              <code className="font-mono bg-white px-2 py-1 rounded border border-border">
+                {business?.slug || '—'}
+              </code>
+            </div>
+            <div>
+              <span className="text-muted-foreground block mb-0.5">Subscription Status:</span>
+              <Badge variant="outline" className="font-mono text-[10px] uppercase">
+                {sub?.status || 'TRIAL'}
+              </Badge>
+            </div>
+            <div>
+              <span className="text-muted-foreground block mb-0.5">Trial Starts:</span>
+              <span className="font-mono text-foreground">
+                {sub?.trialStartsAt ? new Date(sub.trialStartsAt).toLocaleDateString() : '—'}
+              </span>
+            </div>
+            <div>
+              <span className="text-muted-foreground block mb-0.5">Trial Ends:</span>
+              <span className="font-mono text-foreground">
+                {sub?.trialEndsAt ? new Date(sub.trialEndsAt).toLocaleDateString() : '—'}
+              </span>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </DashboardLayout>
+  );
+};

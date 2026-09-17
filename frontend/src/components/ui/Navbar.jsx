@@ -72,10 +72,16 @@ export const Navbar = () => {
                 Features
               </Link>
               <Link
-                to="/onboarding"
+                to="/pricing"
                 className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
-                How It Works
+                Pricing
+              </Link>
+              <Link
+                to="/faq"
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                FAQ
               </Link>
             </>
           )}
@@ -180,11 +186,25 @@ export const Navbar = () => {
             ) : (
               <>
                 <Link
-                  to="/dashboard"
+                  to="/"
                   onClick={() => setMobileMenuOpen(false)}
                   className="text-sm font-medium text-muted-foreground hover:text-foreground"
                 >
-                  Dashboard
+                  Features
+                </Link>
+                <Link
+                  to="/pricing"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Pricing
+                </Link>
+                <Link
+                  to="/faq"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  FAQ
                 </Link>
                 <div className="flex flex-col gap-2 pt-2 border-t border-border">
                   <Link to="/login" onClick={() => setMobileMenuOpen(false)}>

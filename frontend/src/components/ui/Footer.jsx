@@ -21,9 +21,9 @@ export const Footer = () => {
           </p>
 
           <div className="flex items-center gap-6 text-xs">
-            <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
-            <Link to="/terms" className="hover:text-foreground">Terms</Link>
-            <Link to="/contact" className="hover:text-foreground">Contact</Link>
+            <Link to="/pricing" className="hover:text-foreground">Pricing</Link>
+            <Link to="/faq" className="hover:text-foreground">FAQ</Link>
+            <Link to="/design-system" className="hover:text-foreground">Design System</Link>
           </div>
         </div>
       </div>

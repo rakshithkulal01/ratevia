@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import prisma from '../config/prisma.js';
+import { authMiddleware } from '../middleware/authMiddleware.js';
 
 const router = Router();
 
@@ -232,6 +233,88 @@ router.patch('/:id/google-clicked', async (req, res, next) => {
       feedbackId: updatedFeedback.id,
       googleLinkClickedAt: updatedFeedback.googleLinkClickedAt,
       googleReviewUrl: feedback.business.googleReviewUrl,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/feedback
+ * Retrieve feedback history for the authenticated business owner.
+ * Supports optional query params: ?rating=1..5&limit=50&offset=0
+ */
+router.get('/', authMiddleware, async (req, res, next) => {
+  try {
+    const { rating, limit = 50, offset = 0 } = req.query;
+
+    // Find the business owned by the authenticated user
+    const business = await prisma.business.findFirst({
+      where: {
+        ownerId: req.user.id,
+        isActive: true,
+      },
+    });
+
+    if (!business) {
+      return res.status(404).json({
+        error: 'NotFound',
+        message: 'No active business profile found for this user.',
+      });
+    }
+
+    const whereClause = {
+      businessId: business.id,
+    };
+
+    if (rating && !isNaN(Number(rating))) {
+      whereClause.rating = Number(rating);
+    }
+
+    const parsedLimit = Math.min(Math.max(1, Number(limit) || 50), 100);
+    const parsedOffset = Math.max(0, Number(offset) || 0);
+
+    const [feedbacks, totalCount, statsGroup] = await Promise.all([
+      prisma.feedback.findMany({
+        where: whereClause,
+        orderBy: { createdAt: 'desc' },
+        take: parsedLimit,
+        skip: parsedOffset,
+      }),
+      prisma.feedback.count({
+        where: whereClause,
+      }),
+      prisma.feedback.groupBy({
+        by: ['rating'],
+        where: { businessId: business.id },
+        _count: { id: true },
+      }),
+    ]);
+
+    // Calculate rating distribution and overall summary
+    const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    let totalAllRatings = 0;
+    let sumRatings = 0;
+
+    statsGroup.forEach((group) => {
+      ratingDistribution[group.rating] = group._count.id;
+      totalAllRatings += group._count.id;
+      sumRatings += group.rating * group._count.id;
+    });
+
+    const averageRating =
+      totalAllRatings > 0 ? Number((sumRatings / totalAllRatings).toFixed(1)) : 0;
+
+    return res.status(200).json({
+      feedbacks,
+      totalCount,
+      limit: parsedLimit,
+      offset: parsedOffset,
+      summary: {
+        totalFeedback: totalAllRatings,
+        averageRating,
+        ratingDistribution,
+      },
     });
   } catch (error) {
     next(error);
