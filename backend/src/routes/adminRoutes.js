@@ -25,6 +25,9 @@ router.get('/stats', async (req, res, next) => {
       totalUsers,
       totalFeedbacks,
       totalQrScans,
+      totalRequests,
+      newRequests,
+      contactedRequests,
     ] = await Promise.all([
       prisma.business.count(),
       prisma.business.count({ where: { isActive: true } }),
@@ -32,6 +35,9 @@ router.get('/stats', async (req, res, next) => {
       prisma.user.count(),
       prisma.feedback.count(),
       prisma.analyticsEvent.count({ where: { eventType: 'QR_SCANNED' } }),
+      prisma.businessRequest.count(),
+      prisma.businessRequest.count({ where: { status: 'NEW' } }),
+      prisma.businessRequest.count({ where: { status: 'CONTACTED' } }),
     ]);
 
     return res.status(200).json({
@@ -42,7 +48,135 @@ router.get('/stats', async (req, res, next) => {
         totalUsers,
         totalFeedbacks,
         totalQrScans,
+        totalRequests,
+        newRequests,
+        contactedRequests,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/business-requests
+ * Return list of business registration requests sorted newest first.
+ * Supports optional ?status= query filter.
+ */
+router.get('/business-requests', async (req, res, next) => {
+  try {
+    const { status } = req.query;
+
+    const where = {};
+    if (status && ['NEW', 'CONTACTED', 'PROVISIONED', 'REJECTED'].includes(status.toUpperCase())) {
+      where.status = status.toUpperCase();
+    }
+
+    const requests = await prisma.businessRequest.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        contactedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        provisionedBusiness: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    return res.status(200).json({
+      requests,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/admin/business-requests/:id/contact
+ * Mark a business request as CONTACTED by current admin.
+ * Idempotent: If already CONTACTED or PROVISIONED, does not overwrite contactedAt/contactedById.
+ */
+router.patch('/business-requests/:id/contact', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.businessRequest.findUnique({
+      where: { id },
+      include: {
+        contactedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        provisionedBusiness: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    if (!existing) {
+      return res.status(404).json({
+        error: 'NotFound',
+        message: 'Business request not found.',
+      });
+    }
+
+    // Idempotent: If already CONTACTED or PROVISIONED, do not re-stamp
+    if (existing.status === 'CONTACTED' || existing.status === 'PROVISIONED') {
+      return res.status(200).json({
+        success: true,
+        message: 'Request is already marked as contacted.',
+        request: existing,
+      });
+    }
+
+    const updated = await prisma.businessRequest.update({
+      where: { id },
+      data: {
+        status: 'CONTACTED',
+        contactedAt: new Date(),
+        contactedById: req.user?.id || null,
+      },
+      include: {
+        contactedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        provisionedBusiness: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+      },
+    });
+
+    console.log(`[AdminContact] BusinessRequest "${updated.businessName}" marked CONTACTED by ${req.user?.email}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Business request marked as contacted.',
+      request: updated,
     });
   } catch (error) {
     next(error);
@@ -115,11 +249,13 @@ const provisionBusinessSchema = z.object({
     .trim()
     .email('Please enter a valid email address'),
   ownerName: z.string().trim().optional().nullable(),
+  requestId: z.string().uuid().optional().nullable(),
 });
 
 /**
  * POST /api/admin/businesses
  * Admin-only provisioning of new businesses after ₹1,000 one-time manual payment.
+ * Uses atomic Prisma transaction to provision business and link business request if provided.
  */
 router.post('/businesses', async (req, res, next) => {
   try {
@@ -132,64 +268,108 @@ router.post('/businesses', async (req, res, next) => {
       });
     }
 
-    const { name, businessType, googleReviewUrl, ownerEmail, ownerName } = parseResult.data;
+    const { name, businessType, googleReviewUrl, ownerEmail, ownerName, requestId } = parseResult.data;
     const normalizedEmail = ownerEmail.toLowerCase();
 
-    // 1. Find or create local User record for the owner
-    let owner = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
-    });
+    // If requestId is provided, verify request exists and is not already provisioned
+    if (requestId) {
+      const existingReq = await prisma.businessRequest.findUnique({
+        where: { id: requestId },
+      });
 
-    if (!owner) {
-      owner = await prisma.user.create({
-        data: {
-          email: normalizedEmail,
-          name: ownerName || null,
-          role: 'BUSINESS_OWNER',
-          supabaseUserId: `manual-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        },
-      });
-    } else if (ownerName && !owner.name) {
-      owner = await prisma.user.update({
-        where: { id: owner.id },
-        data: { name: ownerName },
-      });
+      if (!existingReq) {
+        return res.status(404).json({
+          error: 'NotFound',
+          message: 'Business request not found.',
+        });
+      }
+
+      if (existingReq.status === 'PROVISIONED' || existingReq.provisionedBusinessId) {
+        return res.status(409).json({
+          error: 'AlreadyProvisioned',
+          message: 'This registration request has already been converted into a business.',
+        });
+      }
     }
 
-    // 2. Generate unique slug
-    const slug = await generateUniqueBusinessSlug(name);
+    // Atomic transaction for provisioning and linking
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Find or create local User record for the owner
+      let owner = await tx.user.findUnique({
+        where: { email: normalizedEmail },
+      });
 
-    // 3. Create Business with active QRCode
-    const business = await prisma.business.create({
-      data: {
-        ownerId: owner.id,
-        name,
-        businessType,
-        googleReviewUrl,
-        slug,
-        isActive: true,
-        qrCodes: {
-          create: {
-            active: true,
+      if (!owner) {
+        owner = await tx.user.create({
+          data: {
+            email: normalizedEmail,
+            name: ownerName || null,
+            role: 'BUSINESS_OWNER',
+            supabaseUserId: `manual-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          },
+        });
+      } else if (ownerName && !owner.name) {
+        owner = await tx.user.update({
+          where: { id: owner.id },
+          data: { name: ownerName },
+        });
+      }
+
+      // 2. Generate unique slug using transaction client
+      const slug = await generateUniqueBusinessSlug(name, tx);
+
+      // 3. Create Business with active QRCode
+      const business = await tx.business.create({
+        data: {
+          ownerId: owner.id,
+          name,
+          businessType,
+          googleReviewUrl,
+          slug,
+          isActive: true,
+          qrCodes: {
+            create: {
+              active: true,
+            },
           },
         },
-      },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+        include: {
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          qrCodes: {
+            where: { active: true },
+            take: 1,
           },
         },
-        qrCodes: {
-          where: { active: true },
-          take: 1,
-        },
-      },
-    });
+      });
 
-    console.log(`[AdminProvisioning] Business "${business.name}" (${business.slug}) provisioned for ${owner.email}`);
+      // 4. If requestId is provided, update BusinessRequest atomically
+      let linkedRequest = null;
+      if (requestId) {
+        linkedRequest = await tx.businessRequest.update({
+          where: { id: requestId },
+          data: {
+            status: 'PROVISIONED',
+            provisionedBusinessId: business.id,
+          },
+        });
+      }
+
+      return { business, linkedRequest };
+    }, { maxWait: 15000, timeout: 30000 });
+
+    const { business, linkedRequest } = result;
+
+    console.log(
+      `[AdminProvisioning] Business "${business.name}" (${business.slug}) provisioned for ${business.owner?.email}${
+        linkedRequest ? ` (linked to request ${linkedRequest.id})` : ''
+      }`
+    );
 
     return res.status(201).json({
       success: true,
@@ -205,6 +385,7 @@ router.post('/businesses', async (req, res, next) => {
         owner: business.owner,
         qrCode: business.qrCodes[0],
       },
+      linkedRequestId: linkedRequest ? linkedRequest.id : null,
     });
   } catch (error) {
     next(error);

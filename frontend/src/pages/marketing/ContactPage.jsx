@@ -1,36 +1,94 @@
 import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
+import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import {
-  Mail,
-  Building2,
   CheckCircle2,
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
   Send,
   Loader2,
+  AlertTriangle,
+  Phone,
+  Mail,
+  Building2,
+  User,
+  MapPin,
 } from 'lucide-react';
 import { getCategoryOptions } from '../../config/businessCategories';
 
-export const ContactPage = () => {
-  const [businessName, setBusinessName] = useState('');
-  const [email, setEmail] = useState('');
-  const [businessType, setBusinessType] = useState('CAFE');
-  const [message, setMessage] = useState('');
-  const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-  const handleSubmit = (e) => {
+export const ContactPage = () => {
+  const [ownerName, setOwnerName] = useState('');
+  const [businessName, setBusinessName] = useState('');
+  const [businessType, setBusinessType] = useState('CAFE');
+  const [countryCode, setCountryCode] = useState('+91');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [email, setEmail] = useState('');
+  const [city, setCity] = useState('');
+  const [message, setMessage] = useState('');
+
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [isDuplicate, setIsDuplicate] = useState(false);
+
+  const resetForm = () => {
+    setOwnerName('');
+    setBusinessName('');
+    setBusinessType('CAFE');
+    setCountryCode('+91');
+    setPhoneNumber('');
+    setEmail('');
+    setCity('');
+    setMessage('');
+    setErrorMessage(null);
+    setIsDuplicate(false);
+    setSubmitted(false);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    // Simulate inquiry submission
-    setTimeout(() => {
+    setErrorMessage(null);
+    setIsDuplicate(false);
+
+    try {
+      const res = await fetch(`${API_URL}/api/business-requests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ownerName: ownerName.trim(),
+          businessName: businessName.trim(),
+          businessType,
+          countryCode: countryCode.trim(),
+          phoneNumber: phoneNumber.trim(),
+          email: email.trim(),
+          city: city.trim(),
+          message: message.trim() || null,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (res.status === 201) {
+        setSubmitted(true);
+      } else if (res.status === 409) {
+        setIsDuplicate(true);
+        setErrorMessage(
+          json.message ||
+            'A registration request for this business was recently submitted. Our team will contact you shortly.'
+        );
+      } else {
+        setErrorMessage(json.message || 'Unable to submit request. Please check your details.');
+      }
+    } catch (err) {
+      setErrorMessage(err.message || 'Network error connecting to Ratevia server.');
+    } finally {
       setSubmitting(false);
-      setSubmitted(true);
-    }, 600);
+    }
   };
 
   return (
@@ -41,10 +99,10 @@ export const ContactPage = () => {
           Get Started With Ratevia
         </Badge>
         <h1 className="font-display text-4xl sm:text-5xl text-foreground font-normal">
-          Contact Us to Get Ratevia<span className="text-accent">.</span>
+          Request Ratevia for Your Business<span className="text-accent">.</span>
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-          Ratevia is ₹1,000 one-time for small businesses with zero recurring subscription fees. Tell us about your venue to get your business provisioned.
+          Ratevia is ₹1,000 one-time for local businesses with zero recurring subscription fees. Fill in your details below and our team will get in touch to set up your venue.
         </p>
       </div>
 
@@ -62,7 +120,7 @@ export const ContactPage = () => {
               ₹1,000 <span className="text-xs font-normal text-muted-foreground font-sans">one-time</span>
             </h3>
             <p className="text-xs text-muted-foreground mt-1">
-              No monthly subscription. No usage limits.
+              No monthly subscription. No scan limits.
             </p>
           </div>
 
@@ -74,7 +132,7 @@ export const ContactPage = () => {
               'Business analytics & Recharts dashboard',
               'Google review redirection flow',
               'Unlimited QR scans & customer feedback',
-              'Direct administrator onboarding',
+              'Direct administrator onboarding & verification',
             ].map((feature, idx) => (
               <div key={idx} className="flex items-center gap-2.5">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -85,12 +143,12 @@ export const ContactPage = () => {
 
           <div className="pt-4 border-t border-border text-xs text-muted-foreground">
             <p className="leading-relaxed">
-              Once you reach out, our team sets up your venue profile, generates your high-resolution QR graphics, and activates your dashboard access.
+              Once you submit your request, our team contacts you directly to understand your business, verify your Google Maps profile, and activate your account.
             </p>
           </div>
         </Card>
 
-        {/* Right Column: Contact Inquiry Form */}
+        {/* Right Column: Business Request Form */}
         <Card className="md:col-span-7 p-6">
           {submitted ? (
             <div className="text-center py-12 space-y-4">
@@ -98,52 +156,135 @@ export const ContactPage = () => {
                 <CheckCircle2 className="h-6 w-6" />
               </div>
               <h3 className="font-display text-2xl text-foreground font-semibold">
-                Thank You for Reaching Out!
+                Request received.
               </h3>
+              <p className="text-sm text-foreground max-w-md mx-auto leading-relaxed">
+                Thanks for your interest in Ratevia.
+              </p>
               <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-                We have received your inquiry for <strong className="text-foreground">{businessName}</strong>. Our team will contact you at <strong className="text-foreground">{email}</strong> to finalize your setup.
+                We'll contact you shortly to understand your business and help you get started.
               </p>
               <div className="pt-4">
-                <Button variant="outline" size="sm" onClick={() => setSubmitted(false)}>
-                  Send Another Message
+                <Button variant="outline" size="sm" onClick={resetForm} className="rounded-md">
+                  Submit another inquiry
                 </Button>
               </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-medium text-foreground mb-1">
-                  Business / Venue Name
-                </label>
-                <Input
-                  type="text"
-                  placeholder="e.g. Amber Roast Café"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-foreground mb-1">
-                  Business Category
-                </label>
-                <select
-                  value={businessType}
-                  onChange={(e) => setBusinessType(e.target.value)}
-                  className="w-full rounded-md border border-border bg-white px-3 py-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+              {errorMessage && (
+                <div
+                  className={`p-3 text-xs border rounded-md flex items-start gap-2 ${
+                    isDuplicate
+                      ? 'bg-amber-50 text-amber-900 border-amber-200'
+                      : 'bg-red-50 text-red-700 border-red-200'
+                  }`}
                 >
-                  {getCategoryOptions().map((c) => (
-                    <option key={c.value} value={c.value}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
+                  <AlertTriangle
+                    className={`h-4 w-4 shrink-0 mt-0.5 ${
+                      isDuplicate ? 'text-amber-600' : 'text-red-500'
+                    }`}
+                  />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
+              {/* Owner Name & Business Name */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium text-foreground mb-1">
+                    Owner / Contact Name <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. Rahul Kumar"
+                    value={ownerName}
+                    onChange={(e) => setOwnerName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block font-medium text-foreground mb-1">
+                    Business / Venue Name <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. Amber Roast Café"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    required
+                  />
+                </div>
               </div>
 
+              {/* Business Category & City */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium text-foreground mb-1">
+                    Business Category <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={businessType}
+                    onChange={(e) => setBusinessType(e.target.value)}
+                    className="w-full rounded-md border border-border bg-white px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                  >
+                    {getCategoryOptions().map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-medium text-foreground mb-1">
+                    City / Location <span className="text-red-500">*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. Mangalore / Bangalore"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Phone Number with Country Code */}
               <div>
                 <label className="block font-medium text-foreground mb-1">
-                  Your Email Address
+                  Phone Number (For Verification & Onboarding) <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    className="w-24 rounded-md border border-border bg-white px-2 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-accent shrink-0 font-mono"
+                  >
+                    <option value="+91">+91 (IN)</option>
+                    <option value="+1">+1 (US/CA)</option>
+                    <option value="+44">+44 (UK)</option>
+                    <option value="+971">+971 (UAE)</option>
+                    <option value="+65">+65 (SG)</option>
+                    <option value="+61">+61 (AU)</option>
+                  </select>
+                  <Input
+                    type="tel"
+                    placeholder="98765 43210"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    required
+                    className="flex-1 font-mono"
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  We'll contact you on this number to verify your location and share onboarding steps.
+                </p>
+              </div>
+
+              {/* Email Address */}
+              <div>
+                <label className="block font-medium text-foreground mb-1">
+                  Email Address <span className="text-red-500">*</span>
                 </label>
                 <Input
                   type="email"
@@ -154,30 +295,38 @@ export const ContactPage = () => {
                 />
               </div>
 
+              {/* Message / Details */}
               <div>
                 <label className="block font-medium text-foreground mb-1">
-                  Note / Location / Special Requirements (Optional)
+                  Note / Details (Optional)
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Tell us about your location, Google Maps link, or questions..."
+                  placeholder="Tell us a little about your business or Google Maps link..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  className="w-full p-3 text-xs rounded-md border border-border bg-white text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                  maxLength={1000}
+                  className="w-full p-2.5 text-xs rounded-md border border-border bg-white text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
                 />
               </div>
 
               <div className="pt-2">
-                <Button type="submit" variant="primary" size="md" className="w-full justify-center" disabled={submitting}>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="md"
+                  className="w-full justify-center rounded-md"
+                  disabled={submitting}
+                >
                   {submitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending Inquiry...
+                      Submitting Request...
                     </>
                   ) : (
                     <>
                       <Send className="mr-2 h-4 w-4" />
-                      Request Provisioning (₹1,000 One-Time)
+                      Submit Business Request (₹1,000 One-Time)
                     </>
                   )}
                 </Button>
@@ -189,3 +338,4 @@ export const ContactPage = () => {
     </div>
   );
 };
+export default ContactPage;

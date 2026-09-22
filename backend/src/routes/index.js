@@ -6,6 +6,7 @@ import qrRouter from './qrRoutes.js';
 import feedbackRouter from './feedbackRoutes.js';
 import analyticsRouter from './analyticsRoutes.js';
 import adminRouter from './adminRoutes.js';
+import businessRequestRouter from './businessRequestRoutes.js';
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.use('/qr', qrRouter);
 router.use('/feedback', feedbackRouter);
 router.use('/analytics', analyticsRouter);
 router.use('/admin', adminRouter);
+router.use('/business-requests', businessRequestRouter);
 
 export default router;

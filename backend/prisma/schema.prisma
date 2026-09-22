@@ -33,6 +33,13 @@ enum SubscriptionStatus {
   EXPIRED
 }
 
+enum BusinessRequestStatus {
+  NEW
+  CONTACTED
+  PROVISIONED
+  REJECTED
+}
+
 enum EventType {
   QR_SCANNED
   FEEDBACK_STARTED
@@ -43,13 +50,14 @@ enum EventType {
 }
 
 model User {
-  id             String     @id @default(uuid())
-  supabaseUserId String     @unique
-  name           String?
-  email          String     @unique
-  role           UserRole   @default(BUSINESS_OWNER)
-  createdAt      DateTime   @default(now())
-  businesses     Business[]
+  id                String            @id @default(uuid())
+  supabaseUserId    String            @unique
+  name              String?
+  email             String            @unique
+  role              UserRole          @default(BUSINESS_OWNER)
+  createdAt         DateTime          @default(now())
+  businesses        Business[]
+  contactedRequests BusinessRequest[] @relation("ContactedRequests")
 
   @@map("users")
 }
@@ -70,6 +78,7 @@ model Business {
   feedbacks              Feedback[]
   analyticsEvents        AnalyticsEvent[]
   dailyBusinessAnalytics DailyBusinessAnalytics[]
+  businessRequest        BusinessRequest?
 
   @@index([ownerId])
   @@index([slug])
@@ -162,4 +171,29 @@ model DailyBusinessAnalytics {
   @@index([businessId])
   @@index([date])
   @@map("daily_business_analytics")
+}
+
+model BusinessRequest {
+  id                    String                @id @default(uuid())
+  ownerName             String
+  businessName          String
+  businessType          BusinessType
+  phoneNumber           String
+  email                 String
+  city                  String
+  message               String?
+  status                BusinessRequestStatus @default(NEW)
+  contactedAt           DateTime?
+  contactedById         String?
+  contactedBy           User?                 @relation("ContactedRequests", fields: [contactedById], references: [id])
+  provisionedBusinessId String?               @unique
+  provisionedBusiness   Business?             @relation(fields: [provisionedBusinessId], references: [id])
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([phoneNumber])
+  @@index([email])
+  @@map("business_requests")
 }

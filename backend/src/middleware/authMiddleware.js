@@ -21,6 +21,31 @@ export const authMiddleware = async (req, res, next) => {
       });
     }
 
+    // Support mock tokens during automated integration tests only
+    if (process.env.NODE_ENV === 'test' && token.startsWith('test-token-')) {
+      const targetRole = token.replace('test-token-', '').toUpperCase();
+      let dbUser = await prisma.user.findFirst({ where: { role: targetRole } });
+      if (!dbUser) {
+        dbUser = await prisma.user.create({
+          data: {
+            email: `test-${targetRole.toLowerCase()}@ratevia.test`,
+            supabaseUserId: `test-sub-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            name: `Test ${targetRole}`,
+            role: targetRole,
+          },
+        });
+      }
+      req.user = {
+        id: dbUser.id,
+        supabaseUserId: dbUser.supabaseUserId,
+        email: dbUser.email,
+        role: dbUser.role,
+        metadata: {},
+      };
+      req.dbUser = dbUser;
+      return next();
+    }
+
     // Verify token with Supabase Admin Auth
     let supabase;
     try {

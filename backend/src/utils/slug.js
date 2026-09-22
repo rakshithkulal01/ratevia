@@ -19,13 +19,13 @@ export const slugify = (text) => {
  * Generates a guaranteed unique slug for a business in PostgreSQL.
  * If the base slug exists, appends incremental counters (-1, -2, etc.).
  */
-export const generateUniqueBusinessSlug = async (businessName) => {
+export const generateUniqueBusinessSlug = async (businessName, db = prisma) => {
   const baseSlug = slugify(businessName) || 'business';
   let slug = baseSlug;
   let counter = 1;
 
   while (true) {
-    const existing = await prisma.business.findUnique({
+    const existing = await db.business.findUnique({
       where: { slug },
       select: { id: true },
     });
