@@ -1,16 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
+import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import {
-  CheckCircle2,
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
-  Zap,
-  HelpCircle,
-} from 'lucide-react';
+import { CheckCircle2, ArrowRight } from 'lucide-react';
 
 export const PricingPage = () => {
   return (
@@ -18,48 +11,49 @@ export const PricingPage = () => {
       {/* Header */}
       <div className="text-center space-y-4 max-w-2xl mx-auto">
         <Badge variant="outline" className="font-mono text-xs uppercase">
-          Simple, Transparent Pricing
+          Simple Pricing
         </Badge>
         <h1 className="font-display text-4xl sm:text-5xl text-foreground font-normal">
-          Start free, upgrade when you're convinced<span className="text-accent">.</span>
+          One payment. Zero recurring fees<span className="text-accent">.</span>
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-          Experience the full power of Ratevia with a complete 20-day free trial. No credit card required, no hidden commitments.
+          Everything a small business needs to collect customer feedback and improve its Google review flow without costly monthly subscriptions.
         </p>
       </div>
 
-      {/* Pricing Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto items-stretch">
-        {/* Card 1: 20-Day Free Demo Trial (Highlighted) */}
+      {/* Pricing Card */}
+      <div className="max-w-lg mx-auto">
         <Card className="p-8 border-2 border-accent relative flex flex-col justify-between shadow-lg shadow-accent/5">
-          <div className="absolute -top-3 left-8">
-            <Badge variant="default" className="bg-accent text-white font-mono text-xs uppercase px-3 py-1">
-              Active Demo Access
-            </Badge>
-          </div>
-
           <div className="space-y-6">
-            <div>
-              <h3 className="font-display text-2xl text-foreground">20-Day Free Trial</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Full platform access for testing with your actual guests.
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-display text-2xl text-foreground">Ratevia</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Complete setup for small cafés, restaurants, and hotels.
+                </p>
+              </div>
+              <Badge variant="default" className="bg-emerald-600 text-white font-mono text-[11px] uppercase px-2.5 py-1">
+                One-Time Purchase
+              </Badge>
             </div>
 
-            <div className="flex items-baseline gap-1">
-              <span className="font-display text-4xl font-bold text-foreground">$0</span>
-              <span className="text-xs font-medium text-muted-foreground">for 20 days</span>
+            <div className="flex items-baseline gap-2 pt-2">
+              <span className="font-display text-4xl font-bold text-foreground">₹1,000</span>
+              <span className="text-xs font-medium text-muted-foreground">one-time payment</span>
             </div>
 
             <div className="space-y-3 pt-2 text-xs text-foreground">
               {[
-                'Instant custom QR code with business branding',
-                'Unlimited customer feedback submissions',
+                'Custom QR feedback system with branded standee export',
+                'Touchless mobile customer feedback collection',
                 'AI-assisted review suggestion generator',
-                'Customer experience analytics & Recharts dashboard',
-                'High-resolution (1024x1024) printable PNG standee',
-                '100% Google policy compliant workflow',
-                'No credit card required at signup',
+                'Seamless Google Review redirection flow',
+                'Real-time business overview dashboard',
+                'Customer experience analytics & Recharts trends',
+                'Feedback history for retained 1–3★ constructive reviews',
+                'Complete QR management & regeneration controls',
+                'Unlimited customer QR scans and review submissions',
+                'No monthly subscription or hidden fees',
               ].map((feature, idx) => (
                 <div key={idx} className="flex items-center gap-2.5">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -67,59 +61,17 @@ export const PricingPage = () => {
                 </div>
               ))}
             </div>
+
+            <p className="text-[11px] text-muted-foreground pt-3 border-t border-border">
+              Interested? Contact us to get your business provisioned by our team.
+            </p>
           </div>
 
-          <div className="pt-8">
-            <Link to="/signup" className="w-full">
+          <div className="pt-6">
+            <Link to="/contact" className="w-full">
               <Button variant="primary" size="lg" className="w-full justify-center">
-                <span>Start 20-Day Trial</span>
+                <span>Contact Us to Get Ratevia</span>
                 <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-        </Card>
-
-        {/* Card 2: Pro Business (Commercial Roadmap) */}
-        <Card className="p-8 flex flex-col justify-between bg-muted/20 border-border/80">
-          <div className="space-y-6">
-            <div>
-              <div className="flex items-center justify-between">
-                <h3 className="font-display text-2xl text-foreground">Pro Business</h3>
-                <Badge variant="outline" className="text-[10px] font-mono uppercase">
-                  Upcoming
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                For continuous review growth and ongoing local reputation management.
-              </p>
-            </div>
-
-            <div className="flex items-baseline gap-1">
-              <span className="font-display text-4xl font-bold text-foreground">$29</span>
-              <span className="text-xs font-medium text-muted-foreground">/ month per location</span>
-            </div>
-
-            <div className="space-y-3 pt-2 text-xs text-muted-foreground">
-              {[
-                'Everything included in the free trial',
-                'Continuous review collection without expiration',
-                'Multi-table QR tracking & custom parameter routing',
-                'Weekly email digests of patron impressions',
-                'Priority customer support',
-                'Dedicated onboarding specialist for your staff',
-              ].map((feature, idx) => (
-                <div key={idx} className="flex items-center gap-2.5">
-                  <CheckCircle2 className="h-4 w-4 text-accent shrink-0" />
-                  <span>{feature}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="pt-8">
-            <Link to="/signup" className="w-full">
-              <Button variant="outline" size="lg" className="w-full justify-center">
-                Try Free First
               </Button>
             </Link>
           </div>
@@ -127,15 +79,15 @@ export const PricingPage = () => {
       </div>
 
       {/* FAQ Teaser */}
-      <div className="max-w-2xl mx-auto text-center space-y-4 pt-8">
-        <h3 className="font-display text-xl text-foreground">Have questions about our trial?</h3>
+      <div className="max-w-2xl mx-auto text-center space-y-4 pt-4">
+        <h3 className="font-display text-xl text-foreground">Have questions about our ₹1,000 one-time plan?</h3>
         <p className="text-xs text-muted-foreground">
-          Learn more about how our QR codes work, data retention after trials, and Google review policies.
+          Learn more about how our QR codes work, data privacy policies, and admin provisioning.
         </p>
         <div>
           <Link to="/faq">
             <Button variant="ghost" size="sm" className="text-accent hover:underline">
-              Visit our FAQ &rarr;
+              Read Frequently Asked Questions &rarr;
             </Button>
           </Link>
         </div>

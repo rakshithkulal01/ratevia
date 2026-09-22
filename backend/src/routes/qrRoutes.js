@@ -204,30 +204,18 @@ router.get('/public/:businessSlug', async (req, res, next) => {
     });
 
     if (!business || !business.isActive) {
-      return res.status(404).json({
-        error: 'NotFound',
-        message: 'Business not found or is currently inactive.',
-      });
-    }
-
-    // Check trial expiration
-    const isExpired =
-      business.subscription?.status === 'EXPIRED' ||
-      (business.subscription?.trialEndsAt && new Date() > new Date(business.subscription.trialEndsAt));
-
-    if (isExpired) {
       return res.status(403).json({
-        error: 'SubscriptionExpired',
-        isExpired: true,
+        error: 'BusinessSuspended',
+        isSuspended: true,
         business: {
-          name: business.name,
-          slug: business.slug,
+          name: business?.name || 'Business',
+          slug: businessSlug,
         },
-        message: 'This business review experience is temporarily unavailable.',
+        message: 'This business review experience is currently suspended.',
       });
     }
 
-    // Check if QR code is paused
+    // Check if QR code is paused by business owner
     const qr = business.qrCodes[0];
     if (!qr || !qr.active) {
       return res.status(403).json({
@@ -241,8 +229,11 @@ router.get('/public/:businessSlug', async (req, res, next) => {
       });
     }
 
-    // Log QR_SCANNED analytics event
+    // Record QR scan in DailyBusinessAnalytics and operational event
     try {
+      const { recordDailyEventAnalytics } = await import('../utils/analyticsHelper.js');
+      await recordDailyEventAnalytics(business.id, 'QR_SCANNED');
+
       await prisma.analyticsEvent.create({
         data: {
           businessId: business.id,
@@ -263,6 +254,7 @@ router.get('/public/:businessSlug', async (req, res, next) => {
         id: business.id,
         name: business.name,
         businessType: business.businessType,
+        category: business.businessType,
         slug: business.slug,
         googleReviewUrl: business.googleReviewUrl,
       },

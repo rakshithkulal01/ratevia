@@ -86,12 +86,20 @@ export const FeedbackHistoryPage = () => {
           </div>
           {summary && (
             <div className="flex items-center gap-2">
-              <span className="text-xs font-mono bg-white border border-border px-3 py-1.5 rounded-lg shadow-xs">
-                Total: <strong className="text-foreground">{summary.totalFeedback}</strong> | Avg:{' '}
-                <strong className="text-accent">{summary.averageRating}★</strong>
+              <span className="text-xs font-mono bg-white border border-border px-3 py-1.5 rounded-md shadow-xs">
+                Active 1–3★ Logs: <strong className="text-foreground">{summary.totalFeedback}</strong>
               </span>
             </div>
           )}
+        </div>
+
+        {/* Privacy Notice Banner */}
+        <div className="rounded-md border border-accent/20 bg-accent/5 p-3.5 text-xs text-muted-foreground flex items-start gap-2.5">
+          <Sparkles className="h-4 w-4 text-accent flex-shrink-0 mt-0.5" />
+          <div>
+            <span className="font-semibold text-foreground">Privacy-First Data Retention: </span>
+            4–5★ customer reviews are routed directly to Google and counted in your aggregate analytics without persisting raw customer records. 1–3★ feedbacks containing service feedback are temporarily retained for 30 days for business follow-up.
+          </div>
         </div>
 
         {/* Filter and Search Bar */}
@@ -101,19 +109,19 @@ export const FeedbackHistoryPage = () => {
             <div className="flex items-center gap-1 overflow-x-auto w-full md:w-auto pb-1 md:pb-0">
               <button
                 onClick={() => setRatingFilter('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
                   ratingFilter === 'all'
                     ? 'bg-accent text-white'
                     : 'bg-muted/60 text-muted-foreground hover:text-foreground'
                 }`}
               >
-                All Ratings
+                All Retained (1–3★)
               </button>
               {[5, 4, 3, 2, 1].map((stars) => (
                 <button
                   key={stars}
                   onClick={() => setRatingFilter(String(stars))}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
                     ratingFilter === String(stars)
                       ? 'bg-accent text-white'
                       : 'bg-muted/60 text-muted-foreground hover:text-foreground'
@@ -125,7 +133,7 @@ export const FeedbackHistoryPage = () => {
               ))}
             </div>
 
-            {/* Search Input */}
+            {/* Keyword Search */}
             <div className="relative w-full md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <input
@@ -133,7 +141,7 @@ export const FeedbackHistoryPage = () => {
                 placeholder="Search feedback keywords..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-border bg-white text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-border bg-white text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
               />
             </div>
           </div>
@@ -148,11 +156,17 @@ export const FeedbackHistoryPage = () => {
         ) : filteredFeedbacks.length === 0 ? (
           <Card className="py-16 text-center bg-muted/10 border-dashed">
             <MessageSquare className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-            <h4 className="font-medium text-foreground text-sm mb-1">No feedback entries found</h4>
+            <h4 className="font-medium text-foreground text-sm mb-1">
+              {ratingFilter === '4' || ratingFilter === '5'
+                ? `${ratingFilter}★ Feedbacks are Aggregate-Only`
+                : 'No feedback entries found'}
+            </h4>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-              {searchQuery
+              {ratingFilter === '4' || ratingFilter === '5'
+                ? 'Under Ratevia privacy policy, 4–5★ reviews are routed directly to Google and tracked in the Analytics tab without storing raw customer messages.'
+                : searchQuery
                 ? 'No reviews matched your search query. Try clearing your search.'
-                : 'No feedback has been received for the selected rating filter.'}
+                : 'No raw feedback records have been logged in the past 30 days for this rating.'}
             </p>
           </Card>
         ) : (

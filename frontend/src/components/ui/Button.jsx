@@ -3,7 +3,7 @@ import { cva } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]',
+  'inline-flex items-center justify-center font-medium rounded-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]',
   {
     variants: {
       variant: {
@@ -17,10 +17,10 @@ const buttonVariants = cva(
           'bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground',
       },
       size: {
-        sm: 'h-9 px-3 text-xs rounded-lg',
-        md: 'h-11 px-5 text-sm',
-        lg: 'h-13 px-7 text-base rounded-xl',
-        icon: 'h-10 w-10 p-0',
+        sm: 'h-9 px-3 text-xs rounded-md',
+        md: 'h-11 px-5 text-sm rounded-md',
+        lg: 'h-12 px-6 text-sm rounded-md',
+        icon: 'h-10 w-10 p-0 rounded-md',
       },
     },
     defaultVariants: {

@@ -23,6 +23,7 @@ export const Footer = () => {
           <div className="flex items-center gap-6 text-xs">
             <Link to="/pricing" className="hover:text-foreground">Pricing</Link>
             <Link to="/faq" className="hover:text-foreground">FAQ</Link>
+            <Link to="/contact" className="hover:text-foreground">Contact</Link>
             <Link to="/design-system" className="hover:text-foreground">Design System</Link>
           </div>
         </div>

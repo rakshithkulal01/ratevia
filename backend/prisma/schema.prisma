@@ -17,6 +17,14 @@ enum BusinessType {
   CAFE
   RESTAURANT
   HOTEL
+  CLOTHING_SHOP
+  ELECTRONICS_SHOP
+  SALON
+  GARAGE
+  BAKERY
+  GYM
+  RETAIL_SHOP
+  OTHER
 }
 
 enum SubscriptionStatus {
@@ -47,20 +55,21 @@ model User {
 }
 
 model Business {
-  id              String           @id @default(uuid())
-  ownerId         String
-  owner           User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  name            String
-  businessType    BusinessType
-  googleReviewUrl String
-  slug            String           @unique
-  isActive        Boolean          @default(true)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  subscription    Subscription?
-  qrCodes         QRCode[]
-  feedbacks       Feedback[]
-  analyticsEvents AnalyticsEvent[]
+  id                     String                   @id @default(uuid())
+  ownerId                String
+  owner                  User                     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name                   String
+  businessType           BusinessType
+  googleReviewUrl        String
+  slug                   String                   @unique
+  isActive               Boolean                  @default(true)
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  subscription           Subscription?
+  qrCodes                QRCode[]
+  feedbacks              Feedback[]
+  analyticsEvents        AnalyticsEvent[]
+  dailyBusinessAnalytics DailyBusinessAnalytics[]
 
   @@index([ownerId])
   @@index([slug])
@@ -123,4 +132,34 @@ model AnalyticsEvent {
   @@index([eventType])
   @@index([createdAt])
   @@map("analytics_events")
+}
+
+model DailyBusinessAnalytics {
+  id                     String    @id @default(uuid())
+  businessId             String
+  business               Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  date                   DateTime
+
+  qrScans                Int       @default(0)
+  feedbackStarted        Int       @default(0)
+  reviewsGenerated       Int       @default(0)
+  reviewsCopied          Int       @default(0)
+  googleClicks           Int       @default(0)
+
+  rating1                Int       @default(0)
+  rating2                Int       @default(0)
+  rating3                Int       @default(0)
+  rating4                Int       @default(0)
+  rating5                Int       @default(0)
+
+  positiveTopicCounts    Json?
+  improvementTopicCounts Json?
+
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  @@unique([businessId, date])
+  @@index([businessId])
+  @@index([date])
+  @@map("daily_business_analytics")
 }

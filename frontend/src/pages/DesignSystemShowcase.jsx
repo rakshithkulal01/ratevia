@@ -105,7 +105,7 @@ export const DesignSystemShowcase = () => {
               <CardDescription>Monospaced typography (JetBrains Mono) with optional pulsing status indicators.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap items-center gap-4 pt-2">
-              <Badge dot pulse>Active Trial</Badge>
+              <Badge dot pulse>Account Active</Badge>
               <Badge dot>Verified Business</Badge>
               <Badge variant="muted" dot={false}>Demo Mode</Badge>
             </CardContent>

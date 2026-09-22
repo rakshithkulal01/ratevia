@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import prisma from '../config/prisma.js';
 import { generateUniqueBusinessSlug } from '../utils/slug.js';
+import { SUPPORTED_CATEGORIES } from '../config/businessCategories.js';
 
 const router = Router();
 
@@ -16,8 +17,8 @@ const createBusinessSchema = z.object({
     .trim()
     .min(2, 'Business name must be at least 2 characters')
     .max(100, 'Business name must not exceed 100 characters'),
-  businessType: z.enum(['CAFE', 'RESTAURANT', 'HOTEL'], {
-    errorMap: () => ({ message: 'Business type must be CAFE, RESTAURANT, or HOTEL' }),
+  businessType: z.enum(SUPPORTED_CATEGORIES, {
+    errorMap: () => ({ message: `Business type must be one of: ${SUPPORTED_CATEGORIES.join(', ')}` }),
   }),
   googleReviewUrl: z
     .string({ required_error: 'Google review URL is required' })
@@ -37,7 +38,7 @@ const updateBusinessSchema = z.object({
     .min(2, 'Business name must be at least 2 characters')
     .max(100, 'Business name must not exceed 100 characters')
     .optional(),
-  businessType: z.enum(['CAFE', 'RESTAURANT', 'HOTEL']).optional(),
+  businessType: z.enum(SUPPORTED_CATEGORIES).optional(),
   googleReviewUrl: z
     .string()
     .trim()
@@ -82,6 +83,15 @@ router.post('/', authMiddleware, async (req, res, next) => {
   try {
     await ensureDbUser(req);
 
+    // Phase 11: Public self-registration disabled; admin-only provisioning
+    if (req.user.role !== 'ADMIN') {
+      return res.status(403).json({
+        error: 'AdminProvisioningRequired',
+        message:
+          'Public self-service business creation is disabled. Ratevia businesses are provisioned manually by the Ratevia administration after ₹1,000 purchase. Please contact our team.',
+      });
+    }
+
     // Validate request body
     const validationResult = createBusinessSchema.safeParse(req.body);
     if (!validationResult.success) {
@@ -94,22 +104,6 @@ router.post('/', authMiddleware, async (req, res, next) => {
     }
 
     const { name, businessType, googleReviewUrl } = validationResult.data;
-
-    // Check if authenticated user already has an active business
-    const existingBusiness = await prisma.business.findFirst({
-      where: {
-        ownerId: req.user.id,
-        isActive: true,
-      },
-    });
-
-    if (existingBusiness) {
-      return res.status(409).json({
-        error: 'Conflict',
-        message: 'This account already has an active business profile. Each account supports one business.',
-        businessId: existingBusiness.id,
-      });
-    }
 
     // Generate guaranteed unique slug
     const slug = await generateUniqueBusinessSlug(name);

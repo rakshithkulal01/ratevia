@@ -73,48 +73,37 @@ export const DashboardLayout = ({ children, activeTab }) => {
     { label: 'Settings', path: '/dashboard/business', icon: Settings },
   ];
 
-  const sub = businessData?.subscription;
-  const now = new Date();
-  let daysRemaining = 0;
-  let isExpired = false;
-
-  if (sub?.trialEndsAt) {
-    const msLeft = new Date(sub.trialEndsAt).getTime() - now.getTime();
-    daysRemaining = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
-    if (msLeft <= 0 || sub.status === 'EXPIRED') {
-      isExpired = true;
-    }
-  }
+  const isSuspended = businessData && !businessData.isActive;
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-16">
-      {/* Trial Status Banner */}
+      {/* Account Status Banner */}
       {businessData && (
         <div className="border-b border-border">
-          {isExpired ? (
+          {isSuspended ? (
             <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-3 text-amber-800 dark:text-amber-300">
               <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-3 text-sm">
                 <div className="flex items-center gap-2">
                   <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
                   <span>
-                    <strong className="font-semibold">Demo Trial Expired:</strong> Public QR review intake is currently suspended. All historical data is preserved.
+                    <strong className="font-semibold">Account Suspended:</strong> Public QR review intake is paused. Please contact administrator to activate.
                   </span>
                 </div>
                 <div className="text-xs font-mono bg-amber-500/20 px-2.5 py-1 rounded">
-                  Please contact administrator to extend trial access.
+                  Status: Suspended
                 </div>
               </div>
             </div>
           ) : (
-            <div className="bg-accent/5 border-b border-accent/15 px-4 py-2 text-foreground">
+            <div className="bg-emerald-500/5 border-b border-emerald-500/15 px-4 py-2 text-foreground">
               <div className="mx-auto max-w-6xl flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="flex h-2 w-2 rounded-full bg-accent animate-pulse" />
-                  <span className="font-medium text-muted-foreground">Demo Trial Active:</span>
-                  <span className="font-semibold text-accent">{daysRemaining} {daysRemaining === 1 ? 'day' : 'days'} remaining</span>
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="font-medium text-muted-foreground">Account Status:</span>
+                  <span className="font-semibold text-emerald-600">Active</span>
                 </div>
-                <span className="text-muted-foreground hidden sm:inline">
-                  Ends on {sub?.trialEndsAt ? new Date(sub.trialEndsAt).toLocaleDateString() : 'N/A'}
+                <span className="text-muted-foreground font-mono text-[11px]">
+                  ₹1,000 One-Time Plan • Unlimited QR Reviews
                 </span>
               </div>
             </div>

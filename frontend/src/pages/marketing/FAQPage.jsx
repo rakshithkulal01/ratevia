@@ -3,39 +3,43 @@ import { Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { ChevronDown, HelpCircle, ArrowRight } from 'lucide-react';
+import { ChevronDown, ArrowRight } from 'lucide-react';
 
 export const FAQPage = () => {
   const [openIdx, setOpenIdx] = useState(0);
 
   const faqs = [
     {
-      q: 'How does the Ratevia QR code work?',
-      a: 'When customers scan your custom QR standee, they are directed to your private mobile landing page (ratevia.com/r/your-slug). There, they rate their experience on a 1–5 star scale and select what they liked or what could be improved. The customer is guided through an easy review assistance process before copying their review and opening your official Google Review link.',
+      q: 'How does Ratevia pricing work?',
+      a: 'Ratevia is available for a ₹1,000 one-time payment for small businesses. There are no monthly subscriptions, recurring fees, or limits on customer QR scans or feedback submissions.',
+    },
+    {
+      q: 'How does a business get started with Ratevia?',
+      a: 'Because Ratevia is a curated product for small hospitality venues, businesses are provisioned directly by our administrative team. Once you contact us, we set up your venue profile, configure your target Google review URL, and provide your dashboard credentials along with high-resolution printable QR standee graphics.',
     },
     {
       q: 'Does Ratevia comply with Google Maps review guidelines?',
-      a: 'Yes, 100%. Google prohibits review gating (hiding negative feedback or preventing unsatisfied customers from posting reviews). With Ratevia, all customers—regardless of their star rating—have full freedom and a direct button to continue to your Google Review page. Ratevia never posts reviews automatically and never asks for customer Google credentials.',
+      a: 'Yes, 100%. Google strictly prohibits review gating (blocking or hiding negative reviews). With Ratevia, all customers—regardless of their 1–5 star rating—have direct access to continue to your official Google review page. Ratevia never posts reviews automatically and never asks for customer Google credentials.',
     },
     {
       q: 'How does the AI review assistance work?',
-      a: 'Customers often want to leave a nice review but suffer from writer\'s block. Based on the positive topics they tap (e.g. "Cold Brew", "Friendly Baristas", "Cozy Atmosphere"), Ratevia generates an articulate, friendly review suggestion in seconds. The customer can review it, edit any wording, copy it with one tap, and paste it directly onto Google.',
+      a: 'Customers often want to leave a nice review but struggle with what to write. Based on the positive topics they select (e.g. "Cold Brew", "Friendly Baristas", "Cozy Atmosphere"), Ratevia generates articulate review suggestions. The customer can edit any words, copy the text with one tap, and paste it directly onto your Google review page.',
     },
     {
-      q: 'What happens when a customer has a negative experience (1–3 stars)?',
-      a: 'If a customer had an unsatisfactory visit, Ratevia offers an empathetic screen asking what went wrong (Food quality, Wait time, Service, Cleanliness, etc.) and allows them to leave an optional written note. This feedback is immediately routed to your business dashboard so your team can take corrective action. The customer still retains the option to proceed to Google if they wish.',
+      q: 'What is Ratevia\'s privacy and data retention policy?',
+      a: 'Ratevia practices privacy-by-design. For 4–5 star ratings, we record only aggregate analytics (rating counts, topic tallies, Google clicks) without storing raw customer comments. For 1–3 star ratings, raw feedback is temporarily retained for up to 30 days so your management team can address operational concerns, after which it is automatically deleted. Long-term analytics remain permanent.',
     },
     {
       q: 'What business categories are currently supported?',
-      a: 'Ratevia is designed specifically for local hospitality businesses: Cafés, Restaurants, and Hotels. The topic keywords, review generation tone, and feedback categories are customized to each of these three industries.',
+      a: 'Ratevia is designed for local businesses across multiple industries, including Cafés, Restaurants, Hotels, Clothing Shops, Electronics Shops, Salons, Garages / Auto Services, Bakeries, Gyms, Retail Shops, and other local trades. The topic suggestions, feedback categories, and review generation are customized to each specific business type.',
     },
     {
-      q: 'What happens when my 20-day free trial ends?',
-      a: 'When your trial period ends, customer intake at your QR code is temporarily paused, and a polite pause notice is shown. All of your historical reviews, analytics, and business configurations are permanently preserved. Your access can be reactivated or extended by our platform team without any data loss.',
+      q: "Can I use Ratevia if my specific business type isn't listed?",
+      a: 'Yes. You can select "Other" during provisioning for a versatile, general customer service and quality review experience, and contact our team if you need specialized category configurations.',
     },
     {
-      q: 'Do I need any technical knowledge or hardware?',
-      a: 'None at all. You can register, set up your profile, and download high-resolution QR graphics in less than two minutes. Print the QR code on your office printer, table standee, or receipt paper, and you are ready to collect reviews immediately.',
+      q: 'Can 1–3 star customers still leave a Google review?',
+      a: 'Absolutely. Customers who select 1, 2, or 3 stars are invited to share constructive feedback to help your team improve, but they are never blocked from generating a review or continuing to Google.',
     },
   ];
 
@@ -50,7 +54,7 @@ export const FAQPage = () => {
           Frequently Asked Questions<span className="text-accent">.</span>
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-          Everything you need to know about our customer review workflow, Google compliance, and trial accounts.
+          Everything you need to know about our ₹1,000 one-time model, Google compliance, and privacy-first data retention.
         </p>
       </div>
 
@@ -92,14 +96,14 @@ export const FAQPage = () => {
 
       {/* Help Banner */}
       <Card className="p-8 text-center space-y-4 bg-muted/20">
-        <h3 className="font-display text-xl text-foreground">Ready to try Ratevia in your business?</h3>
+        <h3 className="font-display text-xl text-foreground">Ready to get Ratevia for your venue?</h3>
         <p className="text-xs text-muted-foreground max-w-md mx-auto">
-          Start your 20-day free trial now and experience how easy customer reviews can be.
+          Contact our team to get your business provisioned for a ₹1,000 one-time payment.
         </p>
         <div className="pt-2">
-          <Link to="/signup">
+          <Link to="/contact">
             <Button variant="primary" size="md">
-              Start Your Free Trial
+              Contact Us to Get Ratevia
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>

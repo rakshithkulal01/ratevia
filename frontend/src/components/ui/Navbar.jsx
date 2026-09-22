@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from './Button';
 import { Badge } from './Badge';
 import { useAuth } from '../../context/AuthContext';
-import { Sparkles, Menu, X, LogOut, LayoutDashboard, User } from 'lucide-react';
+import { Sparkles, Menu, X, LogOut, LayoutDashboard, Shield } from 'lucide-react';
 
 export const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -19,8 +19,8 @@ export const Navbar = () => {
     }
   };
 
-  // Extract display name or email initials
-  const displayName = user?.name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
+  const displayName =
+    user?.name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
   const initial = displayName.charAt(0).toUpperCase();
   const userRole = user?.role || 'BUSINESS_OWNER';
 
@@ -28,8 +28,11 @@ export const Navbar = () => {
     <header className="sticky top-0 z-50 w-full border-b border-border/70 bg-background/85 backdrop-blur-md transition-all">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand Logo */}
-        <Link to="/" className="flex items-center gap-2.5 font-display text-2xl tracking-tight text-foreground">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-accent-secondary text-white shadow-sm shadow-accent">
+        <Link
+          to="/"
+          className="flex items-center gap-2.5 font-display text-2xl tracking-tight text-foreground"
+        >
+          <span className="flex h-8 w-8 items-center justify-center rounded-md bg-gradient-to-br from-accent to-accent-secondary text-white shadow-xs">
             <Sparkles className="h-4 w-4" />
           </span>
           <span>
@@ -48,17 +51,12 @@ export const Navbar = () => {
                 <LayoutDashboard className="h-4 w-4" />
                 Dashboard
               </Link>
-              <Link
-                to="/onboarding"
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Onboarding
-              </Link>
               {userRole === 'ADMIN' && (
                 <Link
                   to="/admin"
-                  className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
                 >
+                  <Shield className="h-4 w-4 text-accent" />
                   Admin
                 </Link>
               )}
@@ -69,7 +67,7 @@ export const Navbar = () => {
                 to="/"
                 className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
-                Features
+                Home
               </Link>
               <Link
                 to="/pricing"
@@ -83,6 +81,12 @@ export const Navbar = () => {
               >
                 FAQ
               </Link>
+              <Link
+                to="/contact"
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Contact
+              </Link>
             </>
           )}
         </nav>
@@ -92,14 +96,14 @@ export const Navbar = () => {
           {session ? (
             <div className="flex items-center gap-3">
               {/* User Profile Tag */}
-              <div className="flex items-center gap-2.5 rounded-full border border-border bg-white px-3 py-1.5 shadow-sm">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-white font-medium text-xs">
+              <div className="flex items-center gap-2.5 rounded-md border border-border bg-white px-3 py-1.5 shadow-xs">
+                <div className="flex h-6 w-6 items-center justify-center rounded-md bg-accent text-white font-medium text-xs">
                   {initial}
                 </div>
                 <span className="text-xs font-medium text-foreground max-w-[120px] truncate">
                   {displayName}
                 </span>
-                <span className="font-mono text-[10px] uppercase tracking-wider text-accent font-semibold px-1.5 py-0.5 rounded bg-accent/10">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-accent font-semibold px-1.5 py-0.5 rounded-md bg-accent/10">
                   {userRole === 'ADMIN' ? 'Admin' : 'Owner'}
                 </span>
               </div>
@@ -122,9 +126,9 @@ export const Navbar = () => {
                   Log in
                 </Button>
               </Link>
-              <Link to="/signup">
+              <Link to="/contact">
                 <Button variant="primary" size="sm">
-                  Get Started
+                  Contact Us
                 </Button>
               </Link>
             </>
@@ -134,7 +138,7 @@ export const Navbar = () => {
         {/* Mobile menu toggle */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-border text-foreground md:hidden"
+          className="flex h-10 w-10 items-center justify-center rounded-md border border-border text-foreground md:hidden"
           aria-label="Toggle menu"
         >
           {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -148,7 +152,7 @@ export const Navbar = () => {
             {session ? (
               <>
                 <div className="flex items-center gap-2.5 pb-2 border-b border-border">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white font-medium text-sm">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-md bg-accent text-white font-medium text-sm">
                     {initial}
                   </div>
                   <div className="flex flex-col">
@@ -163,13 +167,15 @@ export const Navbar = () => {
                 >
                   Dashboard
                 </Link>
-                <Link
-                  to="/onboarding"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
-                >
-                  Onboarding
-                </Link>
+                {userRole === 'ADMIN' && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    Admin Control Center
+                  </Link>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -190,7 +196,7 @@ export const Navbar = () => {
                   onClick={() => setMobileMenuOpen(false)}
                   className="text-sm font-medium text-muted-foreground hover:text-foreground"
                 >
-                  Features
+                  Home
                 </Link>
                 <Link
                   to="/pricing"
@@ -206,15 +212,22 @@ export const Navbar = () => {
                 >
                   FAQ
                 </Link>
+                <Link
+                  to="/contact"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Contact
+                </Link>
                 <div className="flex flex-col gap-2 pt-2 border-t border-border">
                   <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="secondary" className="w-full justify-center">
                       Log in
                     </Button>
                   </Link>
-                  <Link to="/signup" onClick={() => setMobileMenuOpen(false)}>
+                  <Link to="/contact" onClick={() => setMobileMenuOpen(false)}>
                     <Button variant="primary" className="w-full justify-center">
-                      Get Started
+                      Contact Us
                     </Button>
                   </Link>
                 </div>

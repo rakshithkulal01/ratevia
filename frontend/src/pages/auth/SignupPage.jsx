@@ -125,14 +125,14 @@ export const SignupPage = () => {
       <div className="w-full max-w-md space-y-8">
         {/* Header */}
         <div className="text-center space-y-3">
-          <Badge dot pulse>
-            Free Demo Trial
+          <Badge variant="outline">
+            ₹1,000 One-Time Access
           </Badge>
           <h1 className="font-display text-4xl sm:text-5xl text-foreground tracking-tight">
-            Get started<span className="text-accent">.</span>
+            Create account<span className="text-accent">.</span>
           </h1>
           <p className="text-sm text-muted-foreground">
-            Create your business profile and start collecting genuine Google reviews.
+            Sign up to access your business dashboard once provisioned by Ratevia.
           </p>
         </div>
 
@@ -144,7 +144,7 @@ export const SignupPage = () => {
               type="button"
               onClick={handleGoogleSignup}
               disabled={googleLoading || loading}
-              className="w-full flex items-center justify-center gap-3 h-12 rounded-xl border border-border bg-white text-foreground hover:bg-muted/60 hover:border-accent/30 font-medium text-sm transition-all duration-200 shadow-sm hover:shadow active:scale-[0.98] disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 h-12 rounded-md border border-border bg-white text-foreground hover:bg-muted/60 hover:border-accent/30 font-medium text-sm transition-all duration-200 shadow-sm hover:shadow active:scale-[0.98] disabled:opacity-50"
             >
               {googleLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin text-accent" />

@@ -1299,3 +1299,1126 @@ After every phase, test the application and report:
 6. Any remaining issues
 
 Then STOP and wait for the next instruction.
+
+# Phase 11 — Ratevia One-Time Purchase + Data Retention Migration
+
+## Objective
+
+Convert Ratevia from the current trial/subscription SaaS model into a **₹1,000 one-time purchase product for small businesses**.
+
+Ratevia will no longer operate as a public self-signup SaaS.
+
+The new model is:
+
+```text
+Public Website
+      ↓
+Landing Page
+      ↓
+Pricing / Get Ratevia
+      ↓
+Business owner contacts Ratevia
+      ↓
+₹1,000 one-time payment
+      ↓
+ADMIN manually provisions the business
+      ↓
+Business owner receives access
+      ↓
+Business Dashboard
+      ↓
+Unlimited QR scans / feedback / analytics
+```
+
+There is currently **NO payment gateway**.
+
+Do not implement Stripe, Razorpay, Cashfree, PayPal, or any other payment integration.
+
+The public website should instead provide contact information / CTA so interested business owners can contact the Ratevia team.
+
+---
+
+# 1. Critical Implementation Rules
+
+## DO NOT break existing working functionality
+
+The following existing functionality must continue working:
+
+* Customer QR flow
+* `/r/:businessSlug`
+* Rating selection
+* Positive/constructive topics
+* Customer message
+* Review generation
+* Review editing
+* Regeneration
+* Copy Review
+* Continue to Google
+* Thank-you flow
+* Feedback API
+* Analytics
+* Feedback dashboard
+* QR management
+* Business settings
+* Admin dashboard
+* Supabase authentication
+* Existing database relationships
+* Existing Prisma setup
+
+Do not rewrite working functionality unnecessarily.
+
+Before modifying anything, inspect the existing implementation and understand the current architecture.
+
+---
+
+# 2. File-Scope Protection
+
+Only modify files that are genuinely required for this phase.
+
+Do NOT:
+
+* rewrite unrelated components
+* change the existing review-generation algorithm
+* change the QR design unnecessarily
+* change Socket/real-time functionality unless required
+* change authentication architecture unnecessarily
+* introduce a new frontend framework
+* introduce a new backend framework
+* replace Prisma
+* replace Supabase
+* introduce unnecessary dependencies
+
+If a change can be implemented without touching an unrelated file, leave that file untouched.
+
+---
+
+# 3. New Business Model
+
+Ratevia is now:
+
+> **₹1,000 one-time payment for small businesses.**
+
+There is:
+
+* No monthly subscription
+* No annual subscription
+* No free trial
+* No trial countdown
+* No trial expiration
+* No usage limits
+* No monthly feedback limits
+* No QR scan limits
+* No public business registration
+
+The product should be presented as a **one-time purchase**, not a subscription.
+
+Do NOT claim "lifetime" service unless the existing business/legal terms explicitly support that wording.
+
+Use wording such as:
+
+> ₹1,000 one-time
+
+instead of:
+
+> ₹X/month
+
+or:
+
+> Free trial
+
+---
+
+# 4. Public Website Changes
+
+Audit the existing public pages.
+
+Remove public-facing trial/subscription messaging such as:
+
+* "20-day free trial"
+* "Start Free Trial"
+* "No credit card required"
+* trial countdown messaging
+* subscription plans
+* recurring monthly pricing
+
+Replace the pricing experience with:
+
+```text
+Ratevia
+
+₹1,000
+One-time payment
+
+✓ QR feedback system
+✓ Customer feedback collection
+✓ Review assistance
+✓ Google review redirection
+✓ Business dashboard
+✓ Analytics
+✓ Feedback history
+✓ QR management
+✓ Unlimited usage
+
+[Get Ratevia]
+```
+
+The CTA should lead to the contact process rather than a payment gateway.
+
+For example:
+
+```text
+Interested in Ratevia?
+
+Contact us to get started.
+
+[Contact Us]
+```
+
+Use the project's existing contact details if they already exist.
+
+Do NOT invent a phone number, email address, WhatsApp number, or payment details.
+
+---
+
+# 5. Remove Public Business Registration
+
+Business owners must NOT be able to freely create Ratevia businesses.
+
+There must be no public:
+
+```text
+Create Business
+Register Business
+Start Trial
+Create Account
+```
+
+flow that automatically provisions a business.
+
+Only the ADMIN can provision a business.
+
+The normal public user journey should be:
+
+```text
+Visitor
+  ↓
+Landing Page
+  ↓
+Pricing
+  ↓
+Contact
+  ↓
+Manual purchase/onboarding
+  ↓
+Admin creates business
+  ↓
+Owner gets access
+```
+
+---
+
+# 6. Business Provisioning
+
+The ADMIN should be the source of truth for creating businesses.
+
+Admin should be able to:
+
+* create a business
+* create/assign the business owner
+* assign business information
+* generate/set the business slug
+* activate the business
+* suspend the business
+* view business information
+* view usage/analytics
+* manage owner access where supported by the existing auth architecture
+
+Do not expose these capabilities publicly.
+
+If the existing authentication uses Supabase, reuse the existing Supabase authentication system rather than implementing another authentication system.
+
+If owner invitation/provisioning is already supported, reuse it.
+
+If it is not currently supported, implement the smallest clean solution that allows ADMIN-only provisioning.
+
+---
+
+# 7. Business Status
+
+The current TRIAL / ACTIVE / EXPIRED subscription model should no longer control normal product access.
+
+Introduce or migrate toward a simple business lifecycle such as:
+
+```text
+ACTIVE
+SUSPENDED
+```
+
+### ACTIVE
+
+Business can use:
+
+* QR
+* customer feedback
+* dashboard
+* analytics
+* feedback history
+* settings
+* all existing features
+
+### SUSPENDED
+
+Business cannot use protected business functionality.
+
+The ADMIN can suspend/reactivate businesses.
+
+Do not delete existing subscription/trial database fields immediately if doing so could break migrations or existing records.
+
+First migrate the application logic away from trial/subscription enforcement.
+
+After the application is verified, obsolete fields/models can be removed in a separate cleanup migration if appropriate.
+
+---
+
+# 8. Remove Trial-Based Access Checks
+
+Audit backend middleware/routes/services for logic such as:
+
+```text
+trialExpiresAt
+subscriptionStatus
+TRIAL
+EXPIRED
+ACTIVE subscription
+daysRemaining
+```
+
+Do not blindly delete these fields.
+
+Determine where they are currently used.
+
+Normal business functionality should no longer depend on:
+
+```text
+trial not expired
+subscription active
+trial days remaining
+```
+
+Instead, access should depend on the business being active/provisioned.
+
+For example:
+
+```text
+business.status === ACTIVE
+```
+
+Admin routes may still need to display legacy subscription/trial information temporarily during migration.
+
+---
+
+# 9. Customer QR Flow Must Remain Working
+
+Do not change the fundamental customer flow.
+
+Customer:
+
+```text
+Scan QR
+ ↓
+Business landing page
+ ↓
+Select rating
+ ↓
+Select topics
+ ↓
+Optional message
+ ↓
+Generate review
+ ↓
+Edit/regenerate if required
+ ↓
+Copy review
+ ↓
+Continue to Google
+ ↓
+Thank you
+```
+
+Keep the current behavior where 1–3 star customers are NOT blocked from generating/copying/continuing to Google.
+
+Do not introduce review gating.
+
+---
+
+# 10. New Raw Review Storage Policy
+
+This is a critical requirement.
+
+Ratevia should NOT permanently store every customer's raw review.
+
+### Rating policy
+
+```text
+5★ → Do NOT store raw feedback
+4★ → Do NOT store raw feedback
+3★ → Store raw feedback temporarily
+2★ → Store raw feedback temporarily
+1★ → Store raw feedback temporarily
+```
+
+Therefore:
+
+```text
+4–5 star
+    ↓
+Aggregate analytics only
+
+1–3 star
+    ↓
+Temporary raw feedback storage
+    ↓
+30 days maximum
+    ↓
+Automatic deletion
+```
+
+---
+
+# 11. What Counts as Raw Feedback
+
+For 1–3 star feedback, the temporary raw record may contain:
+
+* rating
+* selected topics
+* customer message
+* generated review
+* timestamps
+* required business/session references
+
+For 4–5 star feedback, do NOT persist unnecessary raw customer content.
+
+The system should still record the necessary aggregate analytics/events so the business can see:
+
+```text
+Total feedback
+1★ count
+2★ count
+3★ count
+4★ count
+5★ count
+Average rating
+Topic counts
+Google clicks
+Review copies
+QR scans
+Conversion metrics
+```
+
+Do not sacrifice analytics accuracy.
+
+---
+
+# 12. Analytics Must Work for All Ratings
+
+Even though raw feedback is only retained for 1–3 star ratings, analytics must include all ratings.
+
+Example:
+
+```text
+Total Feedback: 152
+
+5★: 83
+4★: 42
+3★: 15
+2★: 8
+1★: 4
+
+Average Rating: 4.26
+```
+
+The 4–5 star raw text does not need to remain stored for this information to work.
+
+Use aggregated counters/data for long-term analytics.
+
+---
+
+# 13. 30-Day Raw Feedback Cleanup
+
+All raw 1–3 star feedback must be automatically deleted after approximately 30 days.
+
+Do NOT rely on the admin manually deleting records.
+
+Implement an automated cleanup mechanism.
+
+Preferred architecture:
+
+```text
+Scheduled Cleanup
+       ↓
+Find raw feedback older than 30 days
+       ↓
+Delete raw feedback
+```
+
+The cleanup should run at least once per day.
+
+This means if the server misses one scheduled run, the next run can still remove all records older than the retention period.
+
+Use the project's existing scheduling/deployment architecture if one exists.
+
+Do not introduce an unnecessarily complicated infrastructure system.
+
+---
+
+# 14. Preserve Historical Analytics
+
+Before deleting raw feedback/events, ensure the required information has already been aggregated.
+
+Create or use an aggregate analytics model/table if the existing architecture does not already provide sufficient long-term aggregation.
+
+Recommended model:
+
+```text
+DailyBusinessAnalytics
+```
+
+Suggested fields:
+
+```text
+id
+businessId
+date
+
+qrScans
+feedbackStarted
+reviewsGenerated
+reviewsCopied
+googleClicks
+
+rating1
+rating2
+rating3
+rating4
+rating5
+```
+
+Also preserve topic-level aggregate information if required by the existing Analytics UI.
+
+For example:
+
+```text
+positiveTopicCounts
+improvementTopicCounts
+```
+
+The exact Prisma representation should follow the existing project's database conventions.
+
+Do not introduce JSON fields if a normalized structure is clearly better for the existing analytics implementation.
+
+---
+
+# 15. Analytics Architecture
+
+The long-term architecture should become:
+
+```text
+                    Ratevia
+                       │
+        ┌──────────────┴──────────────┐
+        │                             │
+   Operational Data              Analytics
+        │                             │
+ Business / Account             Daily Analytics
+ QR Configuration               Aggregated Ratings
+ Owner Access                   Aggregated Topics
+        │
+        │
+ Temporary Customer Data
+        │
+   1–3 Star Feedback
+        │
+      30 Days
+        │
+     AUTO DELETE
+```
+
+The dashboard should preferably use aggregated analytics for long-term historical information rather than depending entirely on raw event/feedback records.
+
+---
+
+# 16. Data Retention
+
+Implement this retention policy:
+
+### Long-term
+
+Keep:
+
+* Business
+* Account/owner
+* QR configuration
+* Business settings
+* Business status
+* Daily aggregated analytics
+* Required operational configuration
+
+### Maximum 30 days
+
+Keep:
+
+* 1–3 star raw feedback
+* customer message
+* generated review associated with that raw feedback
+* other unnecessary raw customer content
+
+### Do not permanently retain
+
+For 4–5 star customers:
+
+* raw customer message
+* raw generated review
+* unnecessary customer-level review content
+
+Only retain what is necessary for aggregated analytics and operational events.
+
+---
+
+# 17. Privacy-by-Design
+
+Do not collect/store customer information that Ratevia does not need.
+
+Do not add:
+
+* customer name
+* customer email
+* customer phone
+* customer address
+* customer account
+* unnecessary personal identifiers
+
+The customer flow should remain anonymous.
+
+The existing anonymous session ID may continue to be used where necessary for analytics/session tracking, but it should not be turned into a permanent customer identity.
+
+---
+
+# 18. Frontend Design Requirement — IMPORTANT
+
+The frontend must NOT use pill-shaped buttons.
+
+Avoid:
+
+```css
+border-radius: 9999px;
+```
+
+or equivalent fully rounded/pill button styles.
+
+Buttons should use a **square/rectangular design** with subtle corner radius.
+
+Preferred style:
+
+```css
+border-radius: 4px;
+```
+
+or:
+
+```css
+border-radius: 6px;
+```
+
+depending on the existing design system.
+
+Do NOT redesign the entire UI.
+
+Maintain the existing visual identity while making buttons rectangular.
+
+This applies to:
+
+* primary buttons
+* secondary buttons
+* CTA buttons
+* dashboard action buttons
+* admin action buttons
+* modal buttons
+* form submit buttons
+* pricing CTA buttons
+
+Do not turn tags, badges, status indicators, or rating controls into buttons unnecessarily.
+
+The requirement specifically applies to interactive buttons/CTAs.
+
+---
+
+# 19. Public Navbar
+
+Audit the navbar.
+
+The public navigation should focus on:
+
+```text
+Home
+How It Works
+Pricing
+FAQ
+Contact
+```
+
+Remove public navigation items related to:
+
+```text
+Start Trial
+Create Business
+Register
+Subscription
+```
+
+The existing Login entry can remain if it is used by provisioned business owners.
+
+Do not expose business-owner dashboard links publicly unless the existing authentication flow requires them.
+
+---
+
+# 20. Pricing Page
+
+Replace subscription pricing with the new offer.
+
+Suggested content:
+
+```text
+Simple Pricing
+
+₹1,000
+One-time payment
+
+Everything a small business needs to collect customer
+feedback and improve its Google review flow.
+
+✓ QR feedback system
+✓ Customer feedback
+✓ Review assistance
+✓ Google review redirection
+✓ Business dashboard
+✓ Analytics
+✓ Feedback history
+✓ QR management
+✓ Unlimited usage
+
+No monthly subscription.
+
+Interested?
+
+Contact us to get Ratevia.
+```
+
+Do not add a fake payment checkout.
+
+Do not claim payment was completed through the website.
+
+---
+
+# 21. Dashboard
+
+The existing business dashboard should continue to provide:
+
+* Overview
+* Analytics
+* Feedback
+* QR Code
+* Settings
+
+Remove UI elements related to:
+
+* trial countdown
+* trial expiration
+* subscription upgrade
+* subscription renewal
+* monthly plan
+* payment status
+
+Replace them with a simple business status indicator where appropriate:
+
+```text
+Account Status: Active
+```
+
+Do not display irrelevant subscription information to the business owner.
+
+---
+
+# 22. Admin Dashboard
+
+The admin dashboard becomes even more important because it is now the provisioning system.
+
+Admin should be able to see:
+
+```text
+Businesses
+Active Businesses
+Suspended Businesses
+Total Feedback
+```
+
+and manage:
+
+```text
+Create Business
+Activate
+Suspend
+Owner Access
+Business Details
+Analytics
+```
+
+Remove or de-emphasize:
+
+```text
+Extend Trial
+Expire Trial
+Reactivate Trial
+Trial Days Remaining
+```
+
+Replace these actions with the new business lifecycle where appropriate.
+
+Do not remove existing admin functionality until equivalent functionality has been implemented and verified.
+
+---
+
+# 23. Database Migration Safety
+
+Before changing Prisma schema:
+
+1. Inspect current schema.
+2. Identify all subscription/trial fields.
+3. Identify all routes/services/components using them.
+4. Identify all foreign-key relationships.
+5. Determine which fields can be deprecated.
+6. Implement migration safely.
+7. Run Prisma validation.
+8. Run Prisma generation.
+9. Test backend startup.
+10. Test existing APIs.
+
+Do not simply delete columns that are still referenced.
+
+---
+
+# 24. API Compatibility
+
+Preserve existing API contracts wherever possible.
+
+Do not rename existing endpoints without a strong reason.
+
+Do not modify request/response formats unnecessarily.
+
+If an endpoint needs to change because trial/subscription logic is removed, update all frontend consumers accordingly.
+
+Search the entire project for every usage before changing an API.
+
+---
+
+# 25. Testing Requirements
+
+After implementation, test the complete flow.
+
+## Public
+
+Test:
+
+* Home page
+* Pricing page
+* FAQ
+* Contact CTA
+* No trial messaging
+* No public business registration
+* No fake payment gateway
+* No subscription pricing
+
+## Admin
+
+Test:
+
+* Admin login
+* Create business
+* Assign owner
+* Activate business
+* Suspend business
+* Reactivate business
+* View business
+* View analytics
+
+## Business Owner
+
+Test:
+
+* Login
+* Dashboard access
+* Overview
+* Analytics
+* Feedback
+* QR
+* Settings
+
+## Customer
+
+Test:
+
+* Scan/open QR
+* Select 5★
+* Select 4★
+* Select 3★
+* Select 2★
+* Select 1★
+* Generate review
+* Edit review
+* Copy review
+* Continue to Google
+* Thank-you page
+
+Verify that 1–3 star customers are NOT blocked from the Google flow.
+
+---
+
+# 26. Data Retention Testing
+
+Explicitly test:
+
+### 5-star
+
+Create a 5-star feedback.
+
+Verify:
+
+```text
+Analytics updated
+Rating count updated
+No unnecessary raw customer review persisted
+```
+
+### 4-star
+
+Same verification.
+
+### 3-star
+
+Create 3-star feedback.
+
+Verify:
+
+```text
+Raw feedback exists
+Dashboard can display it
+Analytics updated
+```
+
+### 2-star
+
+Same.
+
+### 1-star
+
+Same.
+
+### Cleanup
+
+Create a test raw feedback record with a timestamp older than 30 days.
+
+Run the cleanup process.
+
+Verify:
+
+```text
+Raw feedback deleted
+Aggregated analytics still exist
+Dashboard historical analytics still work
+```
+
+Also test a record newer than 30 days and verify that it is NOT deleted.
+
+---
+
+# 27. Analytics Accuracy Test
+
+After creating test feedback:
+
+```text
+5★ × 2
+4★ × 3
+3★ × 2
+2★ × 1
+1★ × 1
+```
+
+Verify that the analytics correctly show:
+
+```text
+5★ = 2
+4★ = 3
+3★ = 2
+2★ = 1
+1★ = 1
+Total = 9
+```
+
+Verify the average rating calculation.
+
+Verify Google clicks and review-copy events.
+
+Verify QR scan counts.
+
+Verify the dashboard remains functional after raw 1–3 star records are cleaned.
+
+---
+
+# 28. Frontend Build Verification
+
+Run the existing frontend build command.
+
+Requirements:
+
+```text
+0 build errors
+0 import errors
+0 unresolved modules
+```
+
+Check the entire UI for accidental pill-shaped buttons.
+
+Search for:
+
+```text
+rounded-full
+border-radius: 9999px
+rounded-[9999px]
+```
+
+and equivalent styles.
+
+Replace button-specific pill styles with subtle rectangular corner radii.
+
+Do not unnecessarily change non-button UI elements.
+
+---
+
+# 29. Backend Verification
+
+Verify:
+
+```text
+/api/health
+```
+
+returns successfully.
+
+Run:
+
+* Prisma validation
+* Prisma generation
+* backend startup
+* relevant API tests
+
+Verify there are no startup errors caused by the migration.
+
+---
+
+# 30. Final Architecture
+
+The final Ratevia architecture should conceptually be:
+
+```text
+                    PUBLIC WEBSITE
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+           Pricing                Contact
+              │                     │
+              └──────────┬──────────┘
+                         │
+                   Manual Purchase
+                         │
+                       ADMIN
+                         │
+                  Create Business
+                         │
+                    Create Owner
+                         │
+                    ACTIVE STATUS
+                         │
+              ┌──────────┴──────────┐
+              │                     │
+          BUSINESS OWNER         CUSTOMER
+              │                     │
+          Dashboard               QR
+              │                     │
+       ┌──────┼──────┐             │
+       │      │      │             │
+   Overview Analytics Feedback      │
+                                Feedback
+                                    │
+                         ┌──────────┴──────────┐
+                         │                     │
+                       4–5★                  1–3★
+                         │                     │
+                  Aggregate only          Raw feedback
+                                               │
+                                            30 days
+                                               │
+                                          AUTO DELETE
+```
+
+---
+
+# 31. Success Criteria
+
+Phase 11 is complete only when:
+
+* Ratevia no longer presents itself as a subscription SaaS.
+* Public trial messaging is removed.
+* Public business registration is removed.
+* Pricing is ₹1,000 one-time.
+* No payment gateway is implemented.
+* Interested businesses contact the Ratevia team.
+* Only ADMIN can provision businesses.
+* Provisioned businesses can access all existing features.
+* There are no usage limits.
+* Trial expiration no longer blocks normal business usage.
+* ADMIN can activate/suspend businesses.
+* 4–5 star raw review content is not permanently stored.
+* 1–3 star raw feedback is retained for a maximum of 30 days.
+* Automated cleanup removes expired raw feedback.
+* Aggregated analytics survive raw-data deletion.
+* Historical analytics remain usable.
+* Customer QR flow remains intact.
+* 1–3 star customers are not blocked from Google.
+* Existing dashboard functionality remains intact.
+* No unnecessary personal customer information is stored.
+* Frontend buttons are rectangular/subtly rounded, NOT pill-shaped.
+* Frontend build succeeds.
+* Backend starts successfully.
+* Prisma migration/validation succeeds.
+* No unrelated functionality is broken.
+
+## Final instruction
+
+Before making changes, **audit the existing Ratevia codebase and produce a concise implementation plan based on the actual files and architecture**.
+
+Then implement the changes with minimal scope.
+
+Do not invent files, routes, models, or existing functionality.
+
+Prefer modifying existing architecture over creating parallel systems.
+
+After implementation, report:
+
+1. Files changed
+2. Database changes
+3. Backend changes
+4. Frontend changes
+5. Data-retention implementation
+6. Admin provisioning implementation
+7. Tests performed
+8. Build/test results
+9. Any remaining issues

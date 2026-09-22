@@ -17,13 +17,9 @@ import {
   Clock,
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { getCategoryOptions } from '../../config/businessCategories';
 
-const BUSINESS_TYPES = [
-  { value: 'CAFE', label: 'Café' },
-  { value: 'RESTAURANT', label: 'Restaurant' },
-  { value: 'HOTEL', label: 'Hotel' },
-];
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export const BusinessSettingsPage = () => {
   const { session } = useAuth();
@@ -168,27 +164,22 @@ export const BusinessSettingsPage = () => {
                 />
               </div>
 
-              {/* Business Type */}
+              {/* Business Category */}
               <div>
                 <label className="block text-xs font-medium text-foreground mb-1">
                   Business Category
                 </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {BUSINESS_TYPES.map((type) => (
-                    <button
-                      key={type.value}
-                      type="button"
-                      onClick={() => setBusinessType(type.value)}
-                      className={`p-3 rounded-lg border text-xs font-medium text-center transition-all ${
-                        businessType === type.value
-                          ? 'border-accent bg-accent/10 text-accent font-semibold'
-                          : 'border-border bg-white text-muted-foreground hover:text-foreground'
-                      }`}
-                    >
+                <select
+                  value={businessType}
+                  onChange={(e) => setBusinessType(e.target.value)}
+                  className="w-full rounded-md border border-border bg-white px-3 py-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                >
+                  {getCategoryOptions().map((type) => (
+                    <option key={type.value} value={type.value}>
                       {type.label}
-                    </button>
+                    </option>
                   ))}
-                </div>
+                </select>
               </div>
 
               {/* Google Review URL */}
@@ -237,26 +228,26 @@ export const BusinessSettingsPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div>
               <span className="text-muted-foreground block mb-0.5">Business Slug:</span>
-              <code className="font-mono bg-white px-2 py-1 rounded border border-border">
+              <code className="font-mono bg-white px-2 py-1 rounded-md border border-border">
                 {business?.slug || '—'}
               </code>
             </div>
             <div>
-              <span className="text-muted-foreground block mb-0.5">Subscription Status:</span>
-              <Badge variant="outline" className="font-mono text-[10px] uppercase">
-                {sub?.status || 'TRIAL'}
+              <span className="text-muted-foreground block mb-0.5">Account Status:</span>
+              <Badge variant="outline" className="font-mono text-[10px] uppercase text-emerald-600 border-emerald-300">
+                {business?.isActive ? 'ACTIVE' : 'SUSPENDED'}
               </Badge>
             </div>
             <div>
-              <span className="text-muted-foreground block mb-0.5">Trial Starts:</span>
-              <span className="font-mono text-foreground">
-                {sub?.trialStartsAt ? new Date(sub.trialStartsAt).toLocaleDateString() : '—'}
+              <span className="text-muted-foreground block mb-0.5">Product Plan:</span>
+              <span className="font-mono text-foreground font-semibold">
+                ₹1,000 One-Time
               </span>
             </div>
             <div>
-              <span className="text-muted-foreground block mb-0.5">Trial Ends:</span>
-              <span className="font-mono text-foreground">
-                {sub?.trialEndsAt ? new Date(sub.trialEndsAt).toLocaleDateString() : '—'}
+              <span className="text-muted-foreground block mb-0.5">Usage Limit:</span>
+              <span className="font-mono text-emerald-600 font-semibold">
+                Unlimited
               </span>
             </div>
           </div>

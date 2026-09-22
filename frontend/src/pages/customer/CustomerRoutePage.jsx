@@ -4,9 +4,6 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import {
-  Coffee,
-  UtensilsCrossed,
-  Hotel,
   Star,
   Sparkles,
   AlertCircle,
@@ -21,11 +18,8 @@ import {
   ThumbsUp,
   MessageSquare
 } from 'lucide-react';
-import {
-  TOPICS_BY_BUSINESS_TYPE,
-  CONSTRUCTIVE_TOPICS,
-  generateReviewText
-} from '../../utils/reviewEngine';
+import { generateReviewText } from '../../utils/reviewEngine';
+import { getCategoryConfig } from '../../config/businessCategories';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const SESSION_KEY = 'ratevia_session_id';
@@ -128,17 +122,22 @@ export const CustomerRoutePage = () => {
     };
   }, [businessSlug]);
 
-  // Contextual topics based on rating and business type
+  // Derive centralized category configuration (with fallback to 'OTHER')
+  const categoryConfig = useMemo(() => {
+    const catKey = business?.category || business?.businessType || 'OTHER';
+    return getCategoryConfig(catKey);
+  }, [business]);
+
+  // Contextual topics based on rating and business category
   const availableTopics = useMemo(() => {
     if (!business) return [];
     if (rating >= 4) {
-      const type = business.businessType || 'CAFE';
-      return TOPICS_BY_BUSINESS_TYPE[type] || TOPICS_BY_BUSINESS_TYPE.CAFE;
+      return categoryConfig.positiveTopics || [];
     } else if (rating >= 1) {
-      return CONSTRUCTIVE_TOPICS;
+      return categoryConfig.improvementTopics || [];
     }
     return [];
-  }, [rating, business]);
+  }, [rating, business, categoryConfig]);
 
   // Topic toggle handler
   const handleTopicToggle = (topic) => {
@@ -153,7 +152,7 @@ export const CustomerRoutePage = () => {
   useEffect(() => {
     if (rating > 0 && !hasCustomEdits && business) {
       const draft = generateReviewText({
-        businessType: business.businessType || 'CAFE',
+        businessCategory: categoryConfig.category,
         businessName: business.name || 'this business',
         rating,
         selectedTopics,
@@ -162,7 +161,7 @@ export const CustomerRoutePage = () => {
       });
       setGeneratedReview(draft);
     }
-  }, [rating, selectedTopics, customerMessage, variationIndex, business, hasCustomEdits]);
+  }, [rating, selectedTopics, customerMessage, variationIndex, business, hasCustomEdits, categoryConfig]);
 
   // Regenerate handler (cycles variation without overwriting rating/topics)
   const handleRegenerate = () => {
@@ -381,13 +380,7 @@ export const CustomerRoutePage = () => {
     );
   }
 
-  const BusinessIcon =
-    business?.businessType === 'HOTEL'
-      ? Hotel
-      : business?.businessType === 'RESTAURANT'
-      ? UtensilsCrossed
-      : Coffee;
-
+  const BusinessIcon = categoryConfig.icon;
   const isPositive = rating >= 4;
 
   return (
@@ -397,21 +390,26 @@ export const CustomerRoutePage = () => {
         <Card className="p-6 sm:p-8 text-center shadow-xl border-border relative overflow-hidden bg-white">
           <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-accent to-accent-secondary" />
 
-          {/* Business Icon & Badge */}
+          {/* Business Icon & Badges */}
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/10 text-accent mb-3 shadow-sm">
             <BusinessIcon className="h-7 w-7" />
           </div>
 
-          <Badge dot pulse className="mb-2">
-            Verified Ratevia QR
-          </Badge>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Badge dot pulse>
+              Verified Ratevia QR
+            </Badge>
+            <span className="text-xs font-mono px-2.5 py-0.5 rounded-md bg-muted text-muted-foreground border border-border font-medium">
+              {categoryConfig.displayName}
+            </span>
+          </div>
 
           <h1 className="font-display text-2xl sm:text-3xl text-foreground mt-1">
             {business?.name}
           </h1>
 
           <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 max-w-sm mx-auto">
-            How was your experience today?
+            How was your experience at {business?.name}?
           </p>
 
           {/* STEP 1: Star Rating */}
@@ -434,7 +432,7 @@ export const CustomerRoutePage = () => {
                     onMouseEnter={() => setHoverRating(star)}
                     onMouseLeave={() => setHoverRating(0)}
                     aria-label={STAR_LABELS[star]}
-                    className={`group flex flex-col items-center p-2.5 sm:p-3 rounded-2xl border transition-all duration-200 active:scale-95 touch-manipulation ${
+                    className={`group flex flex-col items-center p-2.5 sm:p-3 rounded-md border transition-all duration-200 active:scale-95 touch-manipulation ${
                       rating === star
                         ? 'border-accent bg-accent/10 shadow-sm ring-2 ring-accent/30'
                         : 'border-border hover:border-accent/60 hover:bg-accent/5'
@@ -488,7 +486,7 @@ export const CustomerRoutePage = () => {
                       key={topic}
                       type="button"
                       onClick={() => handleTopicToggle(topic)}
-                      className={`text-xs px-3 py-1.5 rounded-full border transition-all duration-150 active:scale-95 ${
+                      className={`text-xs px-3 py-1.5 rounded-md border transition-all duration-150 active:scale-95 ${
                         isSelected
                           ? 'bg-accent text-white border-accent shadow-xs'
                           : 'bg-slate-50 text-slate-700 border-border hover:border-accent/50 hover:bg-white'
@@ -590,7 +588,7 @@ export const CustomerRoutePage = () => {
                   size="lg"
                   onClick={handleCopyReview}
                   disabled={isSubmitting}
-                  className="w-full flex items-center justify-center gap-2 text-xs sm:text-sm font-medium py-3 rounded-2xl border-border hover:bg-slate-50 transition-all active:scale-98"
+                  className="w-full flex items-center justify-center gap-2 text-xs sm:text-sm font-medium py-3 rounded-md border-border hover:bg-slate-50 transition-all active:scale-98"
                 >
                   {copied ? (
                     <>
@@ -612,7 +610,7 @@ export const CustomerRoutePage = () => {
                   size="lg"
                   onClick={handleContinueToGoogle}
                   disabled={isNavigatingGoogle}
-                  className="w-full flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold py-3 rounded-2xl shadow-md transition-all active:scale-98"
+                  className="w-full flex items-center justify-center gap-2 text-xs sm:text-sm font-semibold py-3 rounded-md shadow-md transition-all active:scale-98"
                 >
                   {isNavigatingGoogle ? (
                     <Loader2 className="h-4 w-4 animate-spin text-white" />

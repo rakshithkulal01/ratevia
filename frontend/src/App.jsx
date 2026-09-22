@@ -9,6 +9,7 @@ import { Footer } from './components/ui/Footer';
 import { HomePage } from './pages/marketing/HomePage';
 import { PricingPage } from './pages/marketing/PricingPage';
 import { FAQPage } from './pages/marketing/FAQPage';
+import { ContactPage } from './pages/marketing/ContactPage';
 import { DesignSystemShowcase } from './pages/DesignSystemShowcase';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 
@@ -45,6 +46,7 @@ export function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/faq" element={<FAQPage />} />
+            <Route path="/contact" element={<ContactPage />} />
             <Route path="/design-system" element={<DesignSystemShowcase />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />

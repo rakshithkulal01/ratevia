@@ -99,7 +99,7 @@ export const LoginPage = () => {
               type="button"
               onClick={handleGoogleLogin}
               disabled={googleLoading || loading}
-              className="w-full flex items-center justify-center gap-3 h-12 rounded-xl border border-border bg-white text-foreground hover:bg-muted/60 hover:border-accent/30 font-medium text-sm transition-all duration-200 shadow-sm hover:shadow active:scale-[0.98] disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-3 h-12 rounded-md border border-border bg-white text-foreground hover:bg-muted/60 hover:border-accent/30 font-medium text-sm transition-all duration-200 shadow-sm hover:shadow active:scale-[0.98] disabled:opacity-50"
             >
               {googleLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin text-accent" />

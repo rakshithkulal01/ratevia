@@ -22,6 +22,7 @@ import {
   Hotel,
   UtensilsCrossed,
 } from 'lucide-react';
+import { getCategoryOptions } from '../../config/businessCategories';
 
 export const HomePage = () => {
   // Interactive Product Preview Step
@@ -127,7 +128,7 @@ export const HomePage = () => {
           {/* Section Pill */}
           <div className="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/5 px-3.5 py-1 text-xs font-mono font-medium text-accent">
             <span className="flex h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
-            <span>BUILT FOR CAFÉS, RESTAURANTS & HOTELS</span>
+            <span>BUILT FOR LOCAL BUSINESSES</span>
           </div>
 
           {/* Headline */}
@@ -145,9 +146,9 @@ export const HomePage = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 w-full sm:w-auto">
-            <Link to="/signup" className="w-full sm:w-auto">
+            <Link to="/contact" className="w-full sm:w-auto">
               <Button variant="primary" size="lg" className="w-full sm:w-auto shadow-md shadow-accent/20">
-                <span>Start 20-Day Free Trial</span>
+                <span>Get Ratevia — ₹1,000 One-Time</span>
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
@@ -158,18 +159,18 @@ export const HomePage = () => {
             </a>
           </div>
 
-          <div className="flex items-center gap-6 pt-3 text-xs text-muted-foreground">
+          <div className="flex flex-wrap justify-center items-center gap-6 pt-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-              No credit card required
+              ₹1,000 One-Time Payment
             </span>
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-              Google Policy Compliant
+              No Monthly Subscription
             </span>
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-              Instant QR Generation
+              Unlimited QR Scans
             </span>
           </div>
         </div>
@@ -321,46 +322,31 @@ export const HomePage = () => {
       <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
         <div className="space-y-2">
           <Badge variant="outline" className="font-mono text-xs uppercase">
-            Tailored Industry Profiles
+            Built for Local Businesses
           </Badge>
           <h2 className="font-display text-3xl text-foreground font-normal">
-            Specialized vocabulary for your venue
+            Tailored vocabularies across 11 business categories
           </h2>
           <p className="text-xs text-muted-foreground max-w-lg mx-auto">
-            Topic suggestions are customized to your specific trade so patron reviews sound authentic.
+            Feedback topics and review suggestions are customized to your specific trade so customer reviews sound genuine and authentic.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-          <Card className="p-6 text-center space-y-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 text-accent mx-auto">
-              <Coffee className="h-6 w-6" />
-            </div>
-            <h3 className="font-semibold text-foreground text-base">Cafés</h3>
-            <p className="text-xs text-muted-foreground">
-              Espresso, cold brew, pastries, cozy atmosphere, WiFi, quick take-away, friendly baristas.
-            </p>
-          </Card>
-
-          <Card className="p-6 text-center space-y-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 mx-auto">
-              <UtensilsCrossed className="h-6 w-6" />
-            </div>
-            <h3 className="font-semibold text-foreground text-base">Restaurants</h3>
-            <p className="text-xs text-muted-foreground">
-              Food presentation, chef specials, table service, waiting times, wine pairings, ambiance.
-            </p>
-          </Card>
-
-          <Card className="p-6 text-center space-y-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-600 mx-auto">
-              <Hotel className="h-6 w-6" />
-            </div>
-            <h3 className="font-semibold text-foreground text-base">Hotels</h3>
-            <p className="text-xs text-muted-foreground">
-              Room comfort, front desk hospitality, cleanliness, breakfast buffet, concierge, checkout ease.
-            </p>
-          </Card>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {getCategoryOptions().map((cat) => {
+            const Icon = cat.icon;
+            return (
+              <Card key={cat.value} className="p-5 text-center space-y-2.5 hover:border-accent/40 transition-colors">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent mx-auto">
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h3 className="font-semibold text-foreground text-sm">{cat.label}</h3>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  {cat.description}
+                </p>
+              </Card>
+            );
+          })}
         </div>
       </section>
 
@@ -370,12 +356,12 @@ export const HomePage = () => {
           Ready to elevate your business's Google reputation?
         </h2>
         <p className="text-sm text-muted-foreground max-w-xl mx-auto">
-          Start your 20-day free trial in under 2 minutes. Generate your custom QR code, place it on your counters, and watch your reviews flourish.
+          Get started with Ratevia for a ₹1,000 one-time payment. Our team will provision your venue, generate your custom QR code standee, and activate your dashboard.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-          <Link to="/signup">
+          <Link to="/contact">
             <Button variant="primary" size="lg">
-              Get Started for Free
+              Contact Us to Get Ratevia
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
