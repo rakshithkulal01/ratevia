@@ -295,6 +295,8 @@ export const BUSINESS_CATEGORIES = {
   },
 };
 
+export const SUPPORTED_CATEGORIES = Object.keys(BUSINESS_CATEGORIES);
+
 /**
  * Returns configuration for a given category key, falling back to 'OTHER' if unrecognized.
  */
@@ -303,6 +305,20 @@ export function getCategoryConfig(category) {
     return BUSINESS_CATEGORIES.OTHER;
   }
   return BUSINESS_CATEGORIES[category];
+}
+
+/**
+ * Returns array of supported category string keys.
+ */
+export function getSupportedCategories() {
+  return SUPPORTED_CATEGORIES;
+}
+
+/**
+ * Checks if a category string is supported.
+ */
+export function isSupportedCategory(category) {
+  return Boolean(category && BUSINESS_CATEGORIES[category]);
 }
 
 /**
@@ -316,3 +332,4 @@ export function getCategoryOptions() {
     description: c.description,
   }));
 }
+

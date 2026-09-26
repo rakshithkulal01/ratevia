@@ -18,8 +18,7 @@ import {
 } from 'lucide-react';
 
 import { getCategoryOptions } from '../../config/businessCategories';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { businessService } from '../../services/businessService';
 
 export const BusinessSettingsPage = () => {
   const { session } = useAuth();
@@ -40,75 +39,44 @@ export const BusinessSettingsPage = () => {
       if (!session?.access_token) return;
       try {
         setLoading(true);
-        const res = await fetch(`${API_URL}/api/business`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-
-        if (res.ok) {
-          const json = await res.json();
-          if (mounted && json.business) {
-            setBusiness(json.business);
-            setName(json.business.name || '');
-            setBusinessType(json.business.businessType || 'CAFE');
-            setGoogleReviewUrl(json.business.googleReviewUrl || '');
-          }
-        } else {
-          if (mounted) setError('Could not load business settings.');
+        const json = await businessService.getBusiness(session.access_token);
+        if (mounted && json.business) {
+          setBusiness(json.business);
+          setName(json.business.name || '');
+          setBusinessType(json.business.businessType || 'CAFE');
+          setGoogleReviewUrl(json.business.googleReviewUrl || '');
         }
       } catch (err) {
-        if (mounted) setError(err.message);
+        if (mounted) setError(err.message || 'Could not load business settings.');
       } finally {
         if (mounted) setLoading(false);
       }
     };
 
     loadBusiness();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [session]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
-    setSuccessMsg(null);
-
-    // Basic validation
-    if (!name.trim() || name.trim().length < 2) {
-      setError('Business name must be at least 2 characters.');
-      return;
-    }
-
-    if (!googleReviewUrl.trim().startsWith('http://') && !googleReviewUrl.trim().startsWith('https://')) {
-      setError('Google Review URL must begin with http:// or https://');
-      return;
-    }
+    if (!session?.access_token) return;
 
     try {
       setSaving(true);
-      const res = await fetch(`${API_URL}/api/business`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          name: name.trim(),
-          businessType,
-          googleReviewUrl: googleReviewUrl.trim(),
-        }),
+      setError(null);
+      setSuccessMsg(null);
+
+      const json = await businessService.updateBusiness(session.access_token, {
+        name,
+        businessType,
+        googleReviewUrl,
       });
 
-      const json = await res.json();
-
-      if (res.ok) {
-        setBusiness(json.business);
-        setSuccessMsg('Business profile settings saved successfully.');
-      } else {
-        setError(json.message || 'Failed to update business profile.');
-      }
+      setBusiness(json.business);
+      setSuccessMsg('Business settings successfully updated.');
+      setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err) {
-      setError(err.message || 'A network error occurred.');
+      setError(err.message || 'Failed to update settings.');
     } finally {
       setSaving(false);
     }

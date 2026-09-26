@@ -19,7 +19,7 @@ import {
   Clock,
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { feedbackService } from '../../services/feedbackService';
 
 export const FeedbackHistoryPage = () => {
   const { session } = useAuth();
@@ -36,22 +36,13 @@ export const FeedbackHistoryPage = () => {
       if (!session?.access_token) return;
       try {
         setLoading(true);
-        const queryParam = ratingFilter !== 'all' ? `?rating=${ratingFilter}` : '';
-        const res = await fetch(`${API_URL}/api/feedback${queryParam}`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-
-        if (res.ok) {
-          const json = await res.json();
-          if (mounted) {
-            setFeedbacks(json.feedbacks || []);
-            setSummary(json.summary || null);
-          }
-        } else {
-          if (mounted) setError('Failed to retrieve customer feedbacks.');
+        const json = await feedbackService.getFeedbacks(session.access_token, ratingFilter);
+        if (mounted) {
+          setFeedbacks(json.feedbacks || []);
+          setSummary(json.summary || null);
         }
       } catch (err) {
-        if (mounted) setError(err.message);
+        if (mounted) setError(err.message || 'Failed to retrieve customer feedbacks.');
       } finally {
         if (mounted) setLoading(false);
       }

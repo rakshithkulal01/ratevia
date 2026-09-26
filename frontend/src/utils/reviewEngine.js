@@ -248,3 +248,6 @@ function generateConstructiveReview({ categoryConfig, businessName, rating, sele
 
   return parts.join(' ');
 }
+
+export const generateDeterministicReview = generateReviewText;
+export default generateReviewText;
