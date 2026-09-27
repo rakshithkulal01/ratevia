@@ -60,16 +60,6 @@ export const CustomerRoutePage = () => {
         if (!mounted) return;
 
         setBusiness(data.business);
-
-        // Funnel Step 1: QR_SCANNED
-        analyticsService
-          .logEvent({
-            businessId: data.business.id,
-            eventType: 'QR_SCANNED',
-            sessionId,
-            metadata: { slug: businessSlug },
-          })
-          .catch(() => {});
       } catch (err) {
         if (!mounted) return;
         if (err.status === 403) {

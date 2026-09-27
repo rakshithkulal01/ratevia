@@ -227,4 +227,13 @@ router.get('/', authMiddleware, async (req, res, next) => {
   }
 });
 
+/**
+ * POST /api/analytics/events
+ * Public lightweight endpoint to ingest client-side operational telemetry.
+ * Returns 204 immediately.
+ */
+router.post('/events', async (req, res) => {
+  return res.status(204).end();
+});
+
 export default router;

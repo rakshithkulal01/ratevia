@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import prisma from '../config/prisma.js';
 import { env } from '../config/env.js';
+import { recordDailyEventAnalytics, queueRawAnalyticsEvent } from '../utils/analyticsHelper.js';
 
 const router = Router();
 
@@ -192,24 +193,65 @@ router.get('/public/:businessSlug', async (req, res, next) => {
   try {
     const { businessSlug } = req.params;
 
-    const business = await prisma.business.findUnique({
-      where: { slug: businessSlug },
-      include: {
-        subscription: true,
-        qrCodes: {
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
-      },
-    });
+    const cleanSlug = typeof businessSlug === 'string' ? businessSlug.trim() : '';
+    if (!cleanSlug) {
+      return res.status(400).json({
+        error: 'BadRequest',
+        message: 'Business slug is required.',
+      });
+    }
+
+    // High-performance narrow select using unique slug index (zero subscription join, zero sensitive columns)
+    let business = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        business = await prisma.business.findUnique({
+          where: { slug: cleanSlug },
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            businessType: true,
+            googleReviewUrl: true,
+            isActive: true,
+            qrCodes: {
+              select: {
+                active: true,
+              },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
+          },
+        });
+        break;
+      } catch (dbErr) {
+        const isTransient =
+          dbErr.code === 'P1001' ||
+          dbErr.code === 'P2024' ||
+          dbErr.message?.includes('closed the connection') ||
+          dbErr.message?.includes('handshake') ||
+          dbErr.message?.includes('TLS') ||
+          dbErr.message?.includes('EOF') ||
+          dbErr.message?.includes('ConnectionReset') ||
+          dbErr.message?.includes("Can't reach database") ||
+          dbErr.message?.includes('connection pool');
+
+        if (attempt < 2 && isTransient) {
+          await new Promise((r) => setTimeout(r, 50 * (attempt + 1) + Math.random() * 50));
+          continue;
+        }
+        throw dbErr;
+      }
+    }
 
     if (!business || !business.isActive) {
       return res.status(403).json({
         error: 'BusinessSuspended',
         isSuspended: true,
+        isExpired: true,
         business: {
           name: business?.name || 'Business',
-          slug: businessSlug,
+          slug: cleanSlug,
         },
         message: 'This business review experience is currently suspended.',
       });
@@ -230,24 +272,21 @@ router.get('/public/:businessSlug', async (req, res, next) => {
     }
 
     // Record QR scan in DailyBusinessAnalytics and operational event
-    try {
-      const { recordDailyEventAnalytics } = await import('../utils/analyticsHelper.js');
-      await recordDailyEventAnalytics(business.id, 'QR_SCANNED');
+    // Run analytics non-blockingly so the customer gets a fast response
+    const scanSessionId = req.headers['x-session-id'] || null;
+    const userAgent = req.headers['user-agent'] || null;
+    const ip = req.ip || null;
 
-      await prisma.analyticsEvent.create({
-        data: {
-          businessId: business.id,
-          eventType: 'QR_SCANNED',
-          sessionId: req.headers['x-session-id'] || null,
-          metadata: {
-            userAgent: req.headers['user-agent'] || null,
-            ip: req.ip || null,
-          },
-        },
-      });
-    } catch (analyticsErr) {
-      console.warn('[Analytics] QR_SCANNED non-fatal logging notice:', analyticsErr.message);
-    }
+    recordDailyEventAnalytics(business.id, 'QR_SCANNED');
+    queueRawAnalyticsEvent({
+      businessId: business.id,
+      eventType: 'QR_SCANNED',
+      sessionId: scanSessionId,
+      metadata: {
+        userAgent,
+        ip,
+      },
+    });
 
     return res.status(200).json({
       business: {

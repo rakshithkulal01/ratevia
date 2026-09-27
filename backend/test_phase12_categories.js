@@ -63,9 +63,18 @@ async function runPhase12Tests() {
 
   // --- TEST 3: DATABASE PROVISIONING & RESOLUTION FOR ALL 11 CATEGORIES ---
   console.log('\n[Test 3] Testing database persistence across all 11 categories...');
-  let adminUser = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
-  if (!adminUser) {
-    adminUser = await prisma.user.findFirst();
+  let adminUser = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      adminUser = await prisma.user.findFirst({ where: { role: 'ADMIN' } });
+      if (!adminUser) {
+        adminUser = await prisma.user.findFirst();
+      }
+      break;
+    } catch (e) {
+      if (attempt === 4) throw e;
+      await new Promise((r) => setTimeout(r, 2000));
+    }
   }
 
   const createdBusinessIds = [];
