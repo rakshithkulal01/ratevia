@@ -62,6 +62,7 @@ model User {
   approvedRequests  BusinessRequest[] @relation("ApprovedRequests")
   rejectedRequests  BusinessRequest[] @relation("RejectedRequests")
   priceChanges      PriceHistory[]
+  adminProfile      AdminUser?
 
   @@map("users")
 }
@@ -234,5 +235,61 @@ model PriceHistory {
 
   @@index([changedAt])
   @@map("price_history")
+}
+
+enum AdminPermissionType {
+  MANAGE_ADMINS
+  MANAGE_BUSINESSES
+  MANAGE_BUSINESS_REQUESTS
+  MANAGE_QR_REQUESTS
+  MANAGE_PRICING
+  VIEW_ANALYTICS
+  MANAGE_QR
+  VIEW_DASHBOARD
+}
+
+model AdminUser {
+  id            String            @id @default(uuid())
+  userId        String            @unique
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  displayName   String?
+  email         String?
+  isActive      Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  lastLoginAt   DateTime?
+  permissions   AdminPermission[]
+  createdById   String?
+  createdBy     AdminUser?        @relation("CreatedAdmins", fields: [createdById], references: [id])
+  createdAdmins AdminUser[]       @relation("CreatedAdmins")
+
+  @@index([isActive])
+  @@map("admin_users")
+}
+
+model AdminPermission {
+  id         String              @id @default(uuid())
+  adminId    String
+  permission AdminPermissionType
+  createdAt  DateTime            @default(now())
+  admin      AdminUser           @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@unique([adminId, permission])
+  @@index([adminId])
+  @@map("admin_permissions")
+}
+
+model AdminAuditLog {
+  id            String   @id @default(uuid())
+  actorAdminId  String?
+  targetAdminId String?
+  action        String
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  @@index([actorAdminId])
+  @@index([targetAdminId])
+  @@index([createdAt])
+  @@map("admin_audit_logs")
 }
 

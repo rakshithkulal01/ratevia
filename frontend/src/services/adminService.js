@@ -118,6 +118,86 @@ export const adminService = {
       token,
     });
   },
+
+  /**
+   * Fetch current admin profile and granted permissions
+   */
+  getAdminMe: (token) => {
+    return apiRequest('/api/admin/me', { token });
+  },
+
+  /**
+   * Fetch available permissions catalog
+   */
+  getAdminPermissions: (token) => {
+    return apiRequest('/api/admin/permissions', { token });
+  },
+
+  /**
+   * Fetch list of all administrators
+   */
+  getAdmins: (token) => {
+    return apiRequest('/api/admin/admins', { token });
+  },
+
+  /**
+   * Fetch details of a specific administrator
+   */
+  getAdminById: (token, id) => {
+    return apiRequest(`/api/admin/admins/${id}`, { token });
+  },
+
+  /**
+   * Create a new administrator
+   */
+  createAdmin: (token, payload) => {
+    return apiRequest('/api/admin/admins', {
+      method: 'POST',
+      body: payload,
+      token,
+    });
+  },
+
+  /**
+   * Update administrator details and permissions
+   */
+  updateAdmin: (token, id, payload) => {
+    return apiRequest(`/api/admin/admins/${id}`, {
+      method: 'PATCH',
+      body: payload,
+      token,
+    });
+  },
+
+  /**
+   * Reactivate an administrator
+   */
+  activateAdmin: (token, id) => {
+    return apiRequest(`/api/admin/admins/${id}/activate`, {
+      method: 'POST',
+      token,
+    });
+  },
+
+  /**
+   * Deactivate an administrator
+   */
+  deactivateAdmin: (token, id) => {
+    return apiRequest(`/api/admin/admins/${id}/deactivate`, {
+      method: 'POST',
+      token,
+    });
+  },
+
+  /**
+   * Permanently delete an administrator
+   */
+  deleteAdmin: (token, id) => {
+    return apiRequest(`/api/admin/admins/${id}`, {
+      method: 'DELETE',
+      token,
+    });
+  },
 };
 
 export default adminService;

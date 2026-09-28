@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import QRCode from 'qrcode';
 import { authMiddleware } from '../middleware/authMiddleware.js';
-import { adminMiddleware } from '../middleware/adminMiddleware.js';
+import { adminMiddleware, requirePermission } from '../middleware/adminMiddleware.js';
 import adminService from '../services/adminService.js';
 import qrRequestService from '../services/qrRequestService.js';
 import pricingService from '../services/pricingService.js';
+import adminManagementService from '../services/adminManagementService.js';
 import {
   provisionBusinessSchema,
   statusUpdateSchema,
@@ -13,6 +14,10 @@ import {
   updatePriceSchema,
   rejectRequestSchema,
 } from '../validators/qrRequestValidators.js';
+import {
+  createAdminSchema,
+  updateAdminSchema,
+} from '../validators/adminManagementValidators.js';
 
 const router = Router();
 
@@ -21,10 +26,29 @@ router.use(authMiddleware);
 router.use(adminMiddleware);
 
 /**
+ * GET /api/admin/me
+ * Return currently authenticated administrator profile and granted permissions.
+ */
+router.get('/me', (req, res) => {
+  return res.status(200).json({
+    admin: req.adminUser,
+  });
+});
+
+/**
+ * GET /api/admin/permissions
+ * Return catalog of all supported granular administrator permissions.
+ */
+router.get('/permissions', (req, res) => {
+  const permissions = adminManagementService.getAvailablePermissions();
+  return res.status(200).json({ permissions });
+});
+
+/**
  * GET /api/admin/stats
  * Return overall platform metrics: total businesses, active vs suspended, feedbacks, scans, requests.
  */
-router.get('/stats', async (req, res, next) => {
+router.get('/stats', requirePermission('VIEW_DASHBOARD'), async (req, res, next) => {
   try {
     const stats = await adminService.getAdminPlatformStats();
     return res.status(200).json({ stats });
@@ -37,7 +61,7 @@ router.get('/stats', async (req, res, next) => {
  * GET /api/admin/business-requests
  * Return list of business registration requests sorted newest first.
  */
-router.get('/business-requests', async (req, res, next) => {
+router.get('/business-requests', requirePermission('MANAGE_BUSINESS_REQUESTS'), async (req, res, next) => {
   try {
     const requests = await adminService.getBusinessRequests(req.query.status);
     return res.status(200).json({ requests });
@@ -50,7 +74,7 @@ router.get('/business-requests', async (req, res, next) => {
  * PATCH /api/admin/business-requests/:id/contact
  * Mark a business request as CONTACTED by current admin.
  */
-router.patch('/business-requests/:id/contact', async (req, res, next) => {
+router.patch('/business-requests/:id/contact', requirePermission('MANAGE_BUSINESS_REQUESTS'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const result = await adminService.logRequestContact(id, req.user);
@@ -83,7 +107,7 @@ router.patch('/business-requests/:id/contact', async (req, res, next) => {
  * GET /api/admin/qr-requests
  * Return list of public QR customization requests with optional status filter.
  */
-router.get('/qr-requests', async (req, res, next) => {
+router.get('/qr-requests', requirePermission('MANAGE_QR_REQUESTS'), async (req, res, next) => {
   try {
     const requests = await qrRequestService.getAdminQRRequests(req.query.status);
     return res.status(200).json({ requests });
@@ -96,7 +120,7 @@ router.get('/qr-requests', async (req, res, next) => {
  * GET /api/admin/qr-requests/:id
  * Return complete details of a single QR customization request.
  */
-router.get('/qr-requests/:id', async (req, res, next) => {
+router.get('/qr-requests/:id', requirePermission('MANAGE_QR_REQUESTS'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const request = await qrRequestService.getAdminQRRequestById(id);
@@ -116,7 +140,7 @@ router.get('/qr-requests/:id', async (req, res, next) => {
  * PATCH /api/admin/qr-requests/:id/contact
  * Mark a QR request as CONTACTED.
  */
-router.patch('/qr-requests/:id/contact', async (req, res, next) => {
+router.patch('/qr-requests/:id/contact', requirePermission('MANAGE_QR_REQUESTS'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const result = await adminService.logRequestContact(id, req.user);
@@ -140,7 +164,7 @@ router.patch('/qr-requests/:id/contact', async (req, res, next) => {
  * POST /api/admin/qr-requests/:id/approve
  * Transition QR customization request: NEW/CONTACTED -> APPROVED.
  */
-router.post('/qr-requests/:id/approve', async (req, res, next) => {
+router.post('/qr-requests/:id/approve', requirePermission('MANAGE_QR_REQUESTS'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const result = await qrRequestService.approveRequest(id, req.user);
@@ -164,7 +188,7 @@ router.post('/qr-requests/:id/approve', async (req, res, next) => {
  * POST /api/admin/qr-requests/:id/reject
  * Reject a QR customization request with optional reason.
  */
-router.post('/qr-requests/:id/reject', async (req, res, next) => {
+router.post('/qr-requests/:id/reject', requirePermission('MANAGE_QR_REQUESTS'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const parseResult = rejectRequestSchema.safeParse(req.body);
@@ -191,7 +215,7 @@ router.post('/qr-requests/:id/reject', async (req, res, next) => {
  * GET /api/admin/qr-requests/:id/download
  * Generate and download the customized QR code in requested format (SVG or PNG).
  */
-router.get('/qr-requests/:id/download', async (req, res, next) => {
+router.get('/qr-requests/:id/download', requirePermission('MANAGE_QR'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const format = req.query.format === 'png' ? 'png' : 'svg';
@@ -249,7 +273,7 @@ router.get('/qr-requests/:id/download', async (req, res, next) => {
  * GET /api/admin/settings/price
  * Retrieve current Ratevia price and audit history.
  */
-router.get('/settings/price', async (req, res, next) => {
+router.get('/settings/price', requirePermission('MANAGE_PRICING'), async (req, res, next) => {
   try {
     const pricing = await pricingService.getAdminPricing();
     const history = await pricingService.getPriceHistory();
@@ -263,7 +287,7 @@ router.get('/settings/price', async (req, res, next) => {
  * PUT /api/admin/settings/price
  * Update Ratevia price with audit tracking (Admin only).
  */
-router.put('/settings/price', async (req, res, next) => {
+router.put('/settings/price', requirePermission('MANAGE_PRICING'), async (req, res, next) => {
   try {
     const parseResult = updatePriceSchema.safeParse(req.body);
     if (!parseResult.success) {
@@ -300,7 +324,7 @@ router.put('/settings/price', async (req, res, next) => {
  * GET /api/admin/businesses
  * Return directory of all businesses with owner details and ACTIVE/SUSPENDED status.
  */
-router.get('/businesses', async (req, res, next) => {
+router.get('/businesses', requirePermission('MANAGE_BUSINESSES'), async (req, res, next) => {
   try {
     const businesses = await adminService.getAllBusinesses();
     return res.status(200).json({ businesses });
@@ -313,7 +337,7 @@ router.get('/businesses', async (req, res, next) => {
  * POST /api/admin/businesses
  * Admin-only provisioning of new businesses.
  */
-router.post('/businesses', async (req, res, next) => {
+router.post('/businesses', requirePermission('MANAGE_BUSINESSES'), async (req, res, next) => {
   try {
     const parseResult = provisionBusinessSchema.safeParse(req.body);
     if (!parseResult.success) {
@@ -353,7 +377,7 @@ router.post('/businesses', async (req, res, next) => {
  * PATCH /api/admin/businesses/:id/status
  * Admin toggle for activating or suspending a business account.
  */
-router.patch('/businesses/:id/status', async (req, res, next) => {
+router.patch('/businesses/:id/status', requirePermission('MANAGE_BUSINESSES'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const parseResult = statusUpdateSchema.safeParse(req.body);
@@ -379,6 +403,195 @@ router.patch('/businesses/:id/status', async (req, res, next) => {
     if (error.status === 404) {
       return res.status(404).json({
         error: 'NotFound',
+        message: error.message,
+      });
+    }
+    next(error);
+  }
+});
+
+// ==========================================
+// ADMIN MANAGEMENT ENDPOINTS
+// Protected by MANAGE_ADMINS permission
+// ==========================================
+
+/**
+ * GET /api/admin/admins
+ * Return list of all administrators with their permissions.
+ */
+router.get('/admins', requirePermission('MANAGE_ADMINS'), async (req, res, next) => {
+  try {
+    const admins = await adminManagementService.listAdmins();
+    return res.status(200).json({ admins });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/admin/admins/:id
+ * Return details of a specific administrator.
+ */
+router.get('/admins/:id', requirePermission('MANAGE_ADMINS'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const admin = await adminManagementService.getAdminById(id);
+    return res.status(200).json({ admin });
+  } catch (error) {
+    if (error.status === 404) {
+      return res.status(404).json({
+        error: 'NotFound',
+        message: error.message,
+      });
+    }
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/admins
+ * Create a new administrator account with permissions and escalation safeguards.
+ */
+router.post('/admins', requirePermission('MANAGE_ADMINS'), async (req, res, next) => {
+  try {
+    const parseResult = createAdminSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      return res.status(400).json({
+        error: 'ValidationError',
+        message: parseResult.error.errors[0]?.message || 'Invalid administrator payload',
+        details: parseResult.error.format(),
+      });
+    }
+
+    const { email, displayName, permissions } = parseResult.data;
+    const newAdmin = await adminManagementService.createAdmin({
+      email,
+      displayName,
+      permissions,
+      actingAdmin: req.adminUser,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Administrator "${newAdmin.displayName || newAdmin.email}" created successfully.`,
+      admin: newAdmin,
+    });
+  } catch (error) {
+    if (error.status === 400 || error.status === 403 || error.status === 409) {
+      return res.status(error.status).json({
+        error: error.name || 'AdminCreationError',
+        message: error.message,
+      });
+    }
+    next(error);
+  }
+});
+
+/**
+ * PATCH /api/admin/admins/:id
+ * Update administrator display name, permissions, or activation state.
+ */
+router.patch('/admins/:id', requirePermission('MANAGE_ADMINS'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const parseResult = updateAdminSchema.safeParse(req.body);
+
+    if (!parseResult.success) {
+      return res.status(400).json({
+        error: 'ValidationError',
+        message: parseResult.error.errors[0]?.message || 'Invalid update payload',
+        details: parseResult.error.format(),
+      });
+    }
+
+    const updated = await adminManagementService.updateAdmin(id, {
+      ...parseResult.data,
+      actingAdmin: req.adminUser,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Administrator updated successfully.',
+      admin: updated,
+    });
+  } catch (error) {
+    if (error.status === 400 || error.status === 403 || error.status === 404) {
+      return res.status(error.status).json({
+        error: error.name || 'AdminUpdateError',
+        message: error.message,
+      });
+    }
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/admins/:id/activate
+ * Reactivate a deactivated administrator.
+ */
+router.post('/admins/:id/activate', requirePermission('MANAGE_ADMINS'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const activated = await adminManagementService.activateAdmin(id, req.adminUser);
+
+    return res.status(200).json({
+      success: true,
+      message: `Administrator "${activated.displayName || activated.email}" has been reactivated.`,
+      admin: activated,
+    });
+  } catch (error) {
+    if (error.status === 400 || error.status === 404) {
+      return res.status(error.status).json({
+        error: error.name || 'AdminActivationError',
+        message: error.message,
+      });
+    }
+    next(error);
+  }
+});
+
+/**
+ * POST /api/admin/admins/:id/deactivate
+ * Deactivate an administrator (with last-active admin safeguard).
+ */
+router.post('/admins/:id/deactivate', requirePermission('MANAGE_ADMINS'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const deactivated = await adminManagementService.deactivateAdmin(id, req.adminUser);
+
+    return res.status(200).json({
+      success: true,
+      message: `Administrator "${deactivated.displayName || deactivated.email}" has been deactivated.`,
+      admin: deactivated,
+    });
+  } catch (error) {
+    if (error.status === 400 || error.status === 404) {
+      return res.status(error.status).json({
+        error: error.name || 'AdminDeactivationError',
+        message: error.message,
+      });
+    }
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/admin/admins/:id
+ * Permanently delete an administrator (safeguarded against last-active admin).
+ */
+router.delete('/admins/:id', requirePermission('MANAGE_ADMINS'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await adminManagementService.deleteAdmin(id, req.adminUser);
+
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (error) {
+    if (error.status === 400 || error.status === 404) {
+      return res.status(error.status).json({
+        error: error.name || 'AdminDeleteError',
         message: error.message,
       });
     }

@@ -142,6 +142,14 @@ export function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/admin/admins"
+              element={
+                <ProtectedRoute>
+                  <AdminDashboardPage defaultTab="admins" />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Public Customer Feedback Route */}
             <Route path="/r/:businessSlug" element={<CustomerRoutePage />} />

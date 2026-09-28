@@ -14,6 +14,7 @@ import {
   QrCode,
   Inbox,
   Building2,
+  Users,
 } from 'lucide-react';
 
 import { adminService } from '../../services/adminService';
@@ -25,6 +26,9 @@ import { ProvisionBusinessModal } from '../../components/admin/ProvisionBusiness
 import { AdminQRRequestsTable } from '../../components/admin/AdminQRRequestsTable';
 import { QRRequestDetailsModal } from '../../components/admin/QRRequestDetailsModal';
 import { AdminPricingCard } from '../../components/admin/AdminPricingCard';
+import { AdminManagementTable } from '../../components/admin/AdminManagementTable';
+import { AddAdminModal } from '../../components/admin/AddAdminModal';
+import { EditAdminModal } from '../../components/admin/EditAdminModal';
 
 export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
   const { session, user } = useAuth();
@@ -32,6 +36,8 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
   const [businesses, setBusinesses] = useState([]);
   const [requests, setRequests] = useState([]);
   const [qrRequests, setQrRequests] = useState([]);
+  const [currentAdmin, setCurrentAdmin] = useState(null);
+  const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -40,6 +46,11 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [requestStatusFilter, setRequestStatusFilter] = useState('ALL');
   const [qrStatusFilter, setQrStatusFilter] = useState('ALL');
+
+  // Admin Management Modal states
+  const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+  const [selectedAdminForEdit, setSelectedAdminForEdit] = useState(null);
+  const [adminActionLoadingId, setAdminActionLoadingId] = useState(null);
 
   // Action states
   const [updatingId, setUpdatingId] = useState(null);
@@ -69,17 +80,53 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
       setLoading(true);
       setError(null);
 
-      const [statsData, businessesData, requestsData, qrRequestsData] = await Promise.all([
-        adminService.getStats(session.access_token),
-        adminService.getBusinesses(session.access_token),
-        adminService.getBusinessRequests(session.access_token),
-        adminService.getQRRequests(session.access_token),
-      ]);
+      // 1. Fetch current admin profile & permissions first
+      let adminMe = null;
+      try {
+        const meRes = await adminService.getAdminMe(session.access_token);
+        adminMe = meRes.admin;
+        setCurrentAdmin(adminMe);
+      } catch (meErr) {
+        console.warn('Could not fetch admin me profile:', meErr);
+      }
 
-      setStats(statsData.stats);
-      setBusinesses(businessesData.businesses || []);
-      setRequests(requestsData.requests || []);
-      setQrRequests(qrRequestsData.requests || []);
+      const perms = adminMe?.permissions || [];
+      const canDashboard = perms.includes('VIEW_DASHBOARD');
+      const canBiz = perms.includes('MANAGE_BUSINESSES');
+      const canBizReq = perms.includes('MANAGE_BUSINESS_REQUESTS');
+      const canQRReq = perms.includes('MANAGE_QR_REQUESTS');
+      const canAdmins = perms.includes('MANAGE_ADMINS');
+
+      // 2. Fetch permitted data in parallel
+      const fetchPromises = [];
+
+      if (canDashboard) {
+        fetchPromises.push(
+          adminService.getStats(session.access_token).then((d) => setStats(d.stats)).catch((e) => console.warn(e))
+        );
+      }
+      if (canBiz) {
+        fetchPromises.push(
+          adminService.getBusinesses(session.access_token).then((d) => setBusinesses(d.businesses || [])).catch((e) => console.warn(e))
+        );
+      }
+      if (canBizReq) {
+        fetchPromises.push(
+          adminService.getBusinessRequests(session.access_token).then((d) => setRequests(d.requests || [])).catch((e) => console.warn(e))
+        );
+      }
+      if (canQRReq) {
+        fetchPromises.push(
+          adminService.getQRRequests(session.access_token).then((d) => setQrRequests(d.requests || [])).catch((e) => console.warn(e))
+        );
+      }
+      if (canAdmins) {
+        fetchPromises.push(
+          adminService.getAdmins(session.access_token).then((d) => setAdmins(d.admins || [])).catch((e) => console.warn(e))
+        );
+      }
+
+      await Promise.all(fetchPromises);
     } catch (err) {
       if (err.status === 403) {
         setError('FORBIDDEN');
@@ -260,6 +307,56 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
     } finally {
       setProvisioning(false);
     }
+  };
+
+  // Admin Management Handlers
+  const handleToggleAdminStatus = async (admin) => {
+    try {
+      setAdminActionLoadingId(admin.id);
+      setActionSuccess(null);
+      if (admin.isActive) {
+        await adminService.deactivateAdmin(session.access_token, admin.id);
+        setActionSuccess(`Administrator "${admin.displayName || admin.email}" has been deactivated.`);
+      } else {
+        await adminService.activateAdmin(session.access_token, admin.id);
+        setActionSuccess(`Administrator "${admin.displayName || admin.email}" has been activated.`);
+      }
+      await loadAdminData();
+      setTimeout(() => setActionSuccess(null), 3500);
+    } catch (err) {
+      alert(err.message || 'Failed to update admin status.');
+    } finally {
+      setAdminActionLoadingId(null);
+    }
+  };
+
+  const handleDeleteAdmin = async (admin) => {
+    try {
+      setAdminActionLoadingId(admin.id);
+      setActionSuccess(null);
+      await adminService.deleteAdmin(session.access_token, admin.id);
+      setActionSuccess(`Administrator "${admin.displayName || admin.email}" has been removed.`);
+      await loadAdminData();
+      setTimeout(() => setActionSuccess(null), 3500);
+    } catch (err) {
+      alert(err.message || 'Failed to delete administrator.');
+    } finally {
+      setAdminActionLoadingId(null);
+    }
+  };
+
+  const handleAddAdminSuccess = (newAdmin) => {
+    setShowAddAdminModal(false);
+    setActionSuccess(`Administrator "${newAdmin.displayName || newAdmin.email}" created successfully.`);
+    loadAdminData();
+    setTimeout(() => setActionSuccess(null), 4000);
+  };
+
+  const handleEditAdminSuccess = (updatedAdmin) => {
+    setSelectedAdminForEdit(null);
+    setActionSuccess(`Administrator "${updatedAdmin.displayName || updatedAdmin.email}" updated successfully.`);
+    loadAdminData();
+    setTimeout(() => setActionSuccess(null), 4000);
   };
 
   // 403 Forbidden State for Non-Admin Users
@@ -457,6 +554,24 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
             <DollarSign className="h-4 w-4" />
             <span>Pricing Settings</span>
           </button>
+
+          {/* Admin Management (Requires MANAGE_ADMINS permission) */}
+          {currentAdmin?.permissions?.includes('MANAGE_ADMINS') && (
+            <button
+              onClick={() => setActiveTab('admins')}
+              className={`pb-3 border-b-2 flex items-center gap-2 transition-colors shrink-0 ${
+                activeTab === 'admins'
+                  ? 'border-accent text-accent font-semibold'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Users className="h-4 w-4" />
+              <span>Admin Management</span>
+              <span className="text-muted-foreground text-[10px] font-mono">
+                ({admins.length})
+              </span>
+            </button>
+          )}
         </div>
 
         {/* TAB 1: CUSTOM QR REQUESTS */}
@@ -581,6 +696,21 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
             <AdminPricingCard token={session?.access_token} />
           </div>
         )}
+
+        {/* TAB 5: ADMIN MANAGEMENT */}
+        {activeTab === 'admins' && currentAdmin?.permissions?.includes('MANAGE_ADMINS') && (
+          <div className="space-y-4">
+            <AdminManagementTable
+              admins={admins}
+              currentAdmin={currentAdmin}
+              onAddAdmin={() => setShowAddAdminModal(true)}
+              onEditAdmin={(adm) => setSelectedAdminForEdit(adm)}
+              onToggleStatus={handleToggleAdminStatus}
+              onDeleteAdmin={handleDeleteAdmin}
+              loadingActionId={adminActionLoadingId}
+            />
+          </div>
+        )}
       </div>
 
       {/* QR Request Detail Modal */}
@@ -627,6 +757,25 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
         provisionRequestId={provisionRequestId}
         provisioning={provisioning}
         provisionError={provisionError}
+      />
+
+      {/* Add Admin Modal */}
+      <AddAdminModal
+        isOpen={showAddAdminModal}
+        onClose={() => setShowAddAdminModal(false)}
+        onSuccess={handleAddAdminSuccess}
+        sessionToken={session?.access_token}
+        actingAdminPermissions={currentAdmin?.permissions || []}
+      />
+
+      {/* Edit Admin Modal */}
+      <EditAdminModal
+        isOpen={!!selectedAdminForEdit}
+        admin={selectedAdminForEdit}
+        onClose={() => setSelectedAdminForEdit(null)}
+        onSuccess={handleEditAdminSuccess}
+        sessionToken={session?.access_token}
+        actingAdminPermissions={currentAdmin?.permissions || []}
       />
     </div>
   );
