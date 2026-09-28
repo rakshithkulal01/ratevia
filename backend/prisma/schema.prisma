@@ -36,6 +36,7 @@ enum SubscriptionStatus {
 enum BusinessRequestStatus {
   NEW
   CONTACTED
+  APPROVED
   PROVISIONED
   REJECTED
 }
@@ -58,6 +59,9 @@ model User {
   createdAt         DateTime          @default(now())
   businesses        Business[]
   contactedRequests BusinessRequest[] @relation("ContactedRequests")
+  approvedRequests  BusinessRequest[] @relation("ApprovedRequests")
+  rejectedRequests  BusinessRequest[] @relation("RejectedRequests")
+  priceChanges      PriceHistory[]
 
   @@map("users")
 }
@@ -69,6 +73,7 @@ model Business {
   name                   String
   businessType           BusinessType
   googleReviewUrl        String
+  destinationUrl         String?
   slug                   String                   @unique
   isActive               Boolean                  @default(true)
   createdAt              DateTime                 @default(now())
@@ -180,12 +185,23 @@ model BusinessRequest {
   businessType          BusinessType
   phoneNumber           String
   email                 String
-  city                  String
+  city                  String?
   message               String?
+  destinationUrl        String?
+  qrConfig              Json?
+  quotedPrice           Decimal?              @db.Decimal(10, 2)
   status                BusinessRequestStatus @default(NEW)
   contactedAt           DateTime?
   contactedById         String?
   contactedBy           User?                 @relation("ContactedRequests", fields: [contactedById], references: [id])
+  approvedAt            DateTime?
+  approvedById          String?
+  approvedBy            User?                 @relation("ApprovedRequests", fields: [approvedById], references: [id])
+  rejectedAt            DateTime?
+  rejectedById          String?
+  rejectedBy            User?                 @relation("RejectedRequests", fields: [rejectedById], references: [id])
+  rejectionReason       String?
+  provisionedAt         DateTime?
   provisionedBusinessId String?               @unique
   provisionedBusiness   Business?             @relation(fields: [provisionedBusinessId], references: [id])
   createdAt             DateTime              @default(now())
@@ -197,3 +213,26 @@ model BusinessRequest {
   @@index([email])
   @@map("business_requests")
 }
+
+model AppSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
+model PriceHistory {
+  id          String   @id @default(uuid())
+  oldPrice    Decimal  @db.Decimal(10, 2)
+  newPrice    Decimal  @db.Decimal(10, 2)
+  currency    String   @default("INR")
+  changedById String?
+  changedBy   User?    @relation(fields: [changedById], references: [id])
+  changedAt   DateTime @default(now())
+
+  @@index([changedAt])
+  @@map("price_history")
+}
+

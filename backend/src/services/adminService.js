@@ -193,11 +193,14 @@ export const adminService = {
     name,
     businessType,
     googleReviewUrl,
+    destinationUrl,
     ownerEmail,
     ownerName,
     requestId,
   }) => {
     const normalizedEmail = ownerEmail.toLowerCase();
+    const finalReviewUrl = googleReviewUrl || destinationUrl || '';
+    const finalDestinationUrl = destinationUrl || googleReviewUrl || null;
 
     // Check if requestId exists and is not already provisioned
     if (requestId) {
@@ -253,7 +256,8 @@ export const adminService = {
             ownerId: owner.id,
             name,
             businessType,
-            googleReviewUrl,
+            googleReviewUrl: finalReviewUrl,
+            destinationUrl: finalDestinationUrl,
             slug,
             isActive: true,
             qrCodes: {
@@ -284,6 +288,7 @@ export const adminService = {
             where: { id: requestId },
             data: {
               status: 'PROVISIONED',
+              provisionedAt: new Date(),
               provisionedBusinessId: business.id,
             },
           });
@@ -309,6 +314,7 @@ export const adminService = {
         slug: business.slug,
         businessType: business.businessType,
         googleReviewUrl: business.googleReviewUrl,
+        destinationUrl: business.destinationUrl,
         isActive: business.isActive,
         status: 'ACTIVE',
         owner: business.owner,

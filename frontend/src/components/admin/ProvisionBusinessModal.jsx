@@ -34,8 +34,8 @@ export const ProvisionBusinessModal = ({
               {provisionRequestId ? 'Provision Business from Request' : 'Provision New Business'}
             </h3>
             <p className="text-xs text-muted-foreground">
-              Manual ₹1,000 one-time business onboarding
-              {provisionRequestId && ' • Automatically links lead history'}
+              Official Ratevia business account provisioning
+              {provisionRequestId && ' • Automatically links request history'}
             </p>
           </div>
           <button
@@ -80,10 +80,10 @@ export const ProvisionBusinessModal = ({
           </div>
 
           <div>
-            <label className="block font-medium text-foreground mb-1">Google Review URL</label>
+            <label className="block font-medium text-foreground mb-1">Google Review / Destination URL</label>
             <Input
               type="url"
-              placeholder="https://g.page/r/your-place/review"
+              placeholder="https://g.page/r/your-place/review or https://yourwebsite.com"
               value={provisionGoogleUrl}
               onChange={(e) => setProvisionGoogleUrl(e.target.value)}
               required

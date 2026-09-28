@@ -209,7 +209,7 @@ export const BusinessSettingsPage = () => {
             <div>
               <span className="text-muted-foreground block mb-0.5">Product Plan:</span>
               <span className="font-mono text-foreground font-semibold">
-                ₹1,000 One-Time
+                Ratevia Lifetime (One-Time)
               </span>
             </div>
             <div>

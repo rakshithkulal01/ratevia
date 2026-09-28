@@ -3,6 +3,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Send, Loader2, AlertTriangle } from 'lucide-react';
 import { getCategoryOptions } from '../../config/businessCategories';
+import { usePlatformPrice } from '../../hooks/usePlatformPrice';
 
 export const BusinessRequestForm = ({
   ownerName,
@@ -26,6 +27,7 @@ export const BusinessRequestForm = ({
   errorMessage,
   isDuplicate,
 }) => {
+  const { formattedPrice } = usePlatformPrice();
   return (
     <form onSubmit={onSubmit} className="space-y-4 text-xs">
       {errorMessage && (
@@ -182,7 +184,7 @@ export const BusinessRequestForm = ({
           ) : (
             <>
               <Send className="mr-2 h-4 w-4" />
-              Submit Business Request (₹1,000 One-Time)
+              Submit Business Request ({formattedPrice} One-Time)
             </>
           )}
         </Button>

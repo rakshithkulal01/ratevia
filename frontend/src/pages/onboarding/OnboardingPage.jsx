@@ -11,12 +11,14 @@ import {
   RefreshCw,
   CheckCircle2
 } from 'lucide-react';
+import { usePlatformPrice } from '../../hooks/usePlatformPrice';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export const OnboardingPage = () => {
   const { session, logout } = useAuth();
   const navigate = useNavigate();
+  const { formattedPrice } = usePlatformPrice();
 
   const [checkingExisting, setCheckingExisting] = useState(true);
   const [hasBusiness, setHasBusiness] = useState(false);
@@ -75,14 +77,14 @@ export const OnboardingPage = () => {
             Assisted Business Provisioning
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Ratevia is a ₹1,000 one-time purchase product. Business profiles, unique QR routing, and Google review configurations are securely provisioned by the Ratevia administration.
+            Ratevia is a {formattedPrice} one-time purchase product. Business profiles, unique QR routing, and Google review configurations are securely provisioned by the Ratevia administration.
           </p>
         </div>
 
         <div className="rounded-xl border border-border/60 bg-muted/30 p-4 text-left space-y-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-2 font-medium text-foreground">
             <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
-            <span>Already contacted our team & paid ₹1,000?</span>
+            <span>Already contacted our team & paid {formattedPrice}?</span>
           </div>
           <p className="pl-6">
             Your business is likely being provisioned right now. Click "Refresh Status" below once the team confirms your setup.

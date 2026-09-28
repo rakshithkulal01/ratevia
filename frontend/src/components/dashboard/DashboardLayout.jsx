@@ -103,7 +103,7 @@ export const DashboardLayout = ({ children, activeTab }) => {
                   <span className="font-semibold text-emerald-600">Active</span>
                 </div>
                 <span className="text-muted-foreground font-mono text-[11px]">
-                  ₹1,000 One-Time Plan • Unlimited QR Reviews
+                  Lifetime Plan • Unlimited QR Reviews
                 </span>
               </div>
             </div>

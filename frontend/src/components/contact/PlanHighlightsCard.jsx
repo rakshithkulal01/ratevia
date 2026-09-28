@@ -1,8 +1,11 @@
 import React from 'react';
 import { Card } from '../ui/Card';
 import { CheckCircle2 } from 'lucide-react';
+import { usePlatformPrice } from '../../hooks/usePlatformPrice';
 
 export const PlanHighlightsCard = () => {
+  const { formattedPrice } = usePlatformPrice();
+
   return (
     <Card className="md:col-span-5 p-6 space-y-6 bg-muted/20 border-border/70">
       <div>
@@ -13,7 +16,7 @@ export const PlanHighlightsCard = () => {
           </span>
         </div>
         <h3 className="font-display text-2xl font-bold text-foreground">
-          ₹1,000 <span className="text-xs font-normal text-muted-foreground font-sans">one-time</span>
+          {formattedPrice} <span className="text-xs font-normal text-muted-foreground font-sans">one-time</span>
         </h3>
         <p className="text-xs text-muted-foreground mt-1">
           No monthly subscription. No scan limits.

@@ -76,6 +76,13 @@ export const Navbar = () => {
                 Pricing
               </Link>
               <Link
+                to="/qr-customize"
+                className="text-sm font-medium text-accent font-semibold transition-colors hover:text-accent-secondary flex items-center gap-1"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Customize QR
+              </Link>
+              <Link
                 to="/faq"
                 className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
@@ -204,6 +211,13 @@ export const Navbar = () => {
                   className="text-sm font-medium text-muted-foreground hover:text-foreground"
                 >
                   Pricing
+                </Link>
+                <Link
+                  to="/qr-customize"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-sm font-medium text-accent font-semibold hover:text-accent-secondary"
+                >
+                  Customize QR
                 </Link>
                 <Link
                   to="/faq"

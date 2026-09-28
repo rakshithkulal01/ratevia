@@ -9,6 +9,11 @@ import {
   RotateCcw,
   Plus,
   Search,
+  Sliders,
+  DollarSign,
+  QrCode,
+  Inbox,
+  Building2,
 } from 'lucide-react';
 
 import { adminService } from '../../services/adminService';
@@ -17,28 +22,35 @@ import { BusinessRequestTable } from '../../components/admin/BusinessRequestTabl
 import { BusinessRequestDetailModal } from '../../components/admin/BusinessRequestDetailModal';
 import { BusinessDirectoryTable } from '../../components/admin/BusinessDirectoryTable';
 import { ProvisionBusinessModal } from '../../components/admin/ProvisionBusinessModal';
+import { AdminQRRequestsTable } from '../../components/admin/AdminQRRequestsTable';
+import { QRRequestDetailsModal } from '../../components/admin/QRRequestDetailsModal';
+import { AdminPricingCard } from '../../components/admin/AdminPricingCard';
 
-export const AdminDashboardPage = () => {
+export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
   const { session, user } = useAuth();
   const [stats, setStats] = useState(null);
   const [businesses, setBusinesses] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [qrRequests, setQrRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Tab & Filters
-  const [activeTab, setActiveTab] = useState('requests');
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [requestStatusFilter, setRequestStatusFilter] = useState('ALL');
+  const [qrStatusFilter, setQrStatusFilter] = useState('ALL');
 
   // Action states
   const [updatingId, setUpdatingId] = useState(null);
   const [loggingContactId, setLoggingContactId] = useState(null);
+  const [approvingQRId, setApprovingQRId] = useState(null);
   const [copiedPhoneId, setCopiedPhoneId] = useState(null);
   const [actionSuccess, setActionSuccess] = useState(null);
 
   // Modal States
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [selectedQRRequest, setSelectedQRRequest] = useState(null);
   const [showProvisionModal, setShowProvisionModal] = useState(false);
   const [provisionName, setProvisionName] = useState('');
   const [provisionType, setProvisionType] = useState('CAFE');
@@ -57,15 +69,17 @@ export const AdminDashboardPage = () => {
       setLoading(true);
       setError(null);
 
-      const [statsData, businessesData, requestsData] = await Promise.all([
+      const [statsData, businessesData, requestsData, qrRequestsData] = await Promise.all([
         adminService.getStats(session.access_token),
         adminService.getBusinesses(session.access_token),
         adminService.getBusinessRequests(session.access_token),
+        adminService.getQRRequests(session.access_token),
       ]);
 
       setStats(statsData.stats);
       setBusinesses(businessesData.businesses || []);
       setRequests(requestsData.requests || []);
+      setQrRequests(qrRequestsData.requests || []);
     } catch (err) {
       if (err.status === 403) {
         setError('FORBIDDEN');
@@ -111,11 +125,86 @@ export const AdminDashboardPage = () => {
     }
   };
 
+  const handleLogQRContact = async (requestId) => {
+    try {
+      setLoggingContactId(requestId);
+      setActionSuccess(null);
+
+      const json = await adminService.logQRContact(session.access_token, requestId);
+      setActionSuccess(`Marked QR request as CONTACTED`);
+      setQrRequests((prev) =>
+        prev.map((r) => (r.id === requestId ? { ...r, ...json.request } : r))
+      );
+      if (selectedQRRequest?.id === requestId) {
+        setSelectedQRRequest((prev) => ({ ...prev, ...json.request }));
+      }
+      await loadAdminData();
+      setTimeout(() => setActionSuccess(null), 3500);
+    } catch (err) {
+      alert(err.message || 'Failed to mark contact.');
+    } finally {
+      setLoggingContactId(null);
+    }
+  };
+
+  const handleApproveQR = async (requestId) => {
+    try {
+      setApprovingQRId(requestId);
+      setActionSuccess(null);
+
+      const json = await adminService.approveQRRequest(session.access_token, requestId);
+      setActionSuccess(`Approved QR request for "${json.request.businessName}"`);
+      setQrRequests((prev) =>
+        prev.map((r) => (r.id === requestId ? { ...r, ...json.request } : r))
+      );
+      if (selectedQRRequest?.id === requestId) {
+        setSelectedQRRequest((prev) => ({ ...prev, ...json.request }));
+      }
+      await loadAdminData();
+      setTimeout(() => setActionSuccess(null), 3500);
+    } catch (err) {
+      alert(err.message || 'Failed to approve QR request.');
+    } finally {
+      setApprovingQRId(null);
+    }
+  };
+
+  const handleRejectQR = async (requestId, reason) => {
+    try {
+      setActionSuccess(null);
+
+      const json = await adminService.rejectQRRequest(session.access_token, requestId, reason);
+      setActionSuccess(`QR request marked as REJECTED`);
+      setQrRequests((prev) =>
+        prev.map((r) => (r.id === requestId ? { ...r, ...json.request } : r))
+      );
+      if (selectedQRRequest?.id === requestId) {
+        setSelectedQRRequest((prev) => ({ ...prev, ...json.request }));
+      }
+      await loadAdminData();
+      setTimeout(() => setActionSuccess(null), 3500);
+    } catch (err) {
+      alert(err.message || 'Failed to reject QR request.');
+    }
+  };
+
   const handleOpenProvisionFromRequest = (req, e) => {
     if (e) e.stopPropagation();
     setProvisionName(req.businessName || '');
     setProvisionType(req.businessType || 'CAFE');
-    setProvisionGoogleUrl('');
+    setProvisionGoogleUrl(req.destinationUrl || '');
+    setProvisionOwnerEmail(req.email || '');
+    setProvisionOwnerName(req.ownerName || '');
+    setProvisionRequestId(req.id);
+    setProvisionError(null);
+    setShowProvisionModal(true);
+  };
+
+  const handleOpenProvisionFromQR = (req) => {
+    setSelectedQRRequest(null);
+    setProvisionName(req.businessName || '');
+    setProvisionType(req.businessType || 'CAFE');
+    setProvisionGoogleUrl(req.destinationUrl || '');
     setProvisionOwnerEmail(req.email || '');
     setProvisionOwnerName(req.ownerName || '');
     setProvisionRequestId(req.id);
@@ -142,61 +231,44 @@ export const AdminDashboardPage = () => {
 
   const handleProvisionSubmit = async (e) => {
     e.preventDefault();
-    setProvisionError(null);
-
-    if (!provisionName.trim()) {
-      setProvisionError('Business name is required.');
-      return;
-    }
-    if (!provisionGoogleUrl.trim().startsWith('http')) {
-      setProvisionError('Google Review URL must begin with http:// or https://');
-      return;
-    }
-    if (!provisionOwnerEmail.trim()) {
-      setProvisionError('Owner email is required.');
-      return;
-    }
-
     try {
       setProvisioning(true);
-      await adminService.provisionBusiness(session.access_token, {
+      setProvisionError(null);
+
+      const payload = {
         name: provisionName.trim(),
         businessType: provisionType,
         googleReviewUrl: provisionGoogleUrl.trim(),
+        destinationUrl: provisionGoogleUrl.trim(),
         ownerEmail: provisionOwnerEmail.trim(),
-        ownerName: provisionOwnerName.trim() || null,
-        requestId: provisionRequestId || null,
-      });
+        ownerName: provisionOwnerName.trim() || undefined,
+        requestId: provisionRequestId || undefined,
+      };
 
-      setActionSuccess(
-        `Business "${provisionName}" provisioned successfully!${
-          provisionRequestId ? ' Registration request marked PROVISIONED.' : ''
-        }`
-      );
+      const res = await adminService.provisionBusiness(session.access_token, payload);
+
       setShowProvisionModal(false);
-      setProvisionName('');
-      setProvisionGoogleUrl('');
-      setProvisionOwnerEmail('');
-      setProvisionOwnerName('');
-      setProvisionRequestId(null);
-      if (selectedRequest && selectedRequest.id === provisionRequestId) {
-        setSelectedRequest(null);
-      }
+      setActionSuccess(
+        `Business "${res.business.name}" successfully provisioned with slug: /r/${res.business.slug}`
+      );
+
       await loadAdminData();
-      setTimeout(() => setActionSuccess(null), 4000);
+      setActiveTab('businesses');
+      setTimeout(() => setActionSuccess(null), 5000);
     } catch (err) {
-      setProvisionError(err.message || 'Failed to provision business.');
+      setProvisionError(err.message || 'Provisioning failed.');
     } finally {
       setProvisioning(false);
     }
   };
 
-  if (!isAdmin && error === 'FORBIDDEN') {
+  // 403 Forbidden State for Non-Admin Users
+  if (error === 'FORBIDDEN' || (!isAdmin && !loading)) {
     return (
-      <div className="min-h-[75vh] flex items-center justify-center p-4">
-        <Card className="max-w-md w-full text-center p-8 border-red-200 bg-red-50/40 space-y-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-md bg-red-100 text-red-600 mx-auto">
-            <Shield className="h-6 w-6" />
+      <div className="min-h-[80vh] flex items-center justify-center p-4">
+        <Card className="max-w-md w-full p-8 text-center space-y-4 border-red-200 bg-red-50/50 shadow-sm">
+          <div className="h-12 w-12 rounded-full bg-red-100 text-red-600 mx-auto flex items-center justify-center">
+            <Shield className="h-6 w-6 stroke-[2.2]" />
           </div>
           <h2 className="font-display text-xl text-foreground font-semibold">Admin Access Restricted</h2>
           <p className="text-xs text-muted-foreground leading-relaxed">
@@ -224,7 +296,21 @@ export const AdminDashboardPage = () => {
       r.ownerName.toLowerCase().includes(q) ||
       r.phoneNumber.toLowerCase().includes(q) ||
       r.email.toLowerCase().includes(q) ||
-      r.city.toLowerCase().includes(q)
+      (r.city && r.city.toLowerCase().includes(q))
+    );
+  });
+
+  const filteredQRRequests = qrRequests.filter((r) => {
+    if (qrStatusFilter !== 'ALL' && r.status !== qrStatusFilter) return false;
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      r.businessName.toLowerCase().includes(q) ||
+      r.ownerName.toLowerCase().includes(q) ||
+      r.phoneNumber.toLowerCase().includes(q) ||
+      r.email.toLowerCase().includes(q) ||
+      (r.destinationUrl && r.destinationUrl.toLowerCase().includes(q)) ||
+      (r.referenceId && r.referenceId.toLowerCase().includes(q))
     );
   });
 
@@ -240,6 +326,7 @@ export const AdminDashboardPage = () => {
   });
 
   const newRequestsCount = requests.filter((r) => r.status === 'NEW').length;
+  const newQRRequestsCount = qrRequests.filter((r) => r.status === 'NEW').length;
   const contactedRequestsCount = requests.filter((r) => r.status === 'CONTACTED').length;
 
   return (
@@ -257,7 +344,7 @@ export const AdminDashboardPage = () => {
                 Admin Control Center<span className="text-accent">.</span>
               </h1>
               <p className="text-xs text-muted-foreground mt-1">
-                Review business inquiries, log sales contacts, and provision ₹1,000 one-time accounts.
+                Review custom QR requests, manage registrations, adjust pricing, and provision business accounts.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -287,7 +374,7 @@ export const AdminDashboardPage = () => {
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
         {actionSuccess && (
-          <div className="p-3 text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md flex items-center gap-2">
+          <div className="p-3 text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md flex items-center gap-2 animate-in fade-in">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
             <span>{actionSuccess}</span>
           </div>
@@ -302,45 +389,131 @@ export const AdminDashboardPage = () => {
         />
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-border space-x-6 text-xs font-medium">
+        <div className="flex border-b border-border space-x-6 text-xs font-medium overflow-x-auto">
+          {/* Custom QR Requests */}
+          <button
+            onClick={() => setActiveTab('qr-requests')}
+            className={`pb-3 border-b-2 flex items-center gap-2 transition-colors shrink-0 ${
+              activeTab === 'qr-requests'
+                ? 'border-accent text-accent font-semibold'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <QrCode className="h-4 w-4" />
+            <span>Custom QR Requests</span>
+            {newQRRequestsCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded-md bg-accent text-white text-[10px] font-mono font-bold">
+                {newQRRequestsCount} new
+              </span>
+            )}
+            <span className="text-muted-foreground text-[10px] font-mono">
+              ({qrRequests.length})
+            </span>
+          </button>
+
+          {/* Business Requests */}
           <button
             onClick={() => setActiveTab('requests')}
-            className={`pb-3 border-b-2 flex items-center gap-2 transition-colors ${
+            className={`pb-3 border-b-2 flex items-center gap-2 transition-colors shrink-0 ${
               activeTab === 'requests'
                 ? 'border-accent text-accent font-semibold'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            <span>Business Requests</span>
+            <Inbox className="h-4 w-4" />
+            <span>Contact Inquiries</span>
             {newRequestsCount > 0 && (
               <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-mono font-bold">
                 {newRequestsCount} new
               </span>
             )}
           </button>
+
+          {/* Provisioned Businesses */}
           <button
             onClick={() => setActiveTab('businesses')}
-            className={`pb-3 border-b-2 flex items-center gap-2 transition-colors ${
+            className={`pb-3 border-b-2 flex items-center gap-2 transition-colors shrink-0 ${
               activeTab === 'businesses'
                 ? 'border-accent text-accent font-semibold'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
+            <Building2 className="h-4 w-4" />
             <span>Provisioned Businesses</span>
             <span className="text-muted-foreground text-[10px] font-mono">
               ({businesses.length})
             </span>
           </button>
+
+          {/* Pricing Settings */}
+          <button
+            onClick={() => setActiveTab('pricing')}
+            className={`pb-3 border-b-2 flex items-center gap-2 transition-colors shrink-0 ${
+              activeTab === 'pricing'
+                ? 'border-accent text-accent font-semibold'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <DollarSign className="h-4 w-4" />
+            <span>Pricing Settings</span>
+          </button>
         </div>
 
-        {/* TAB 1: BUSINESS REQUESTS */}
+        {/* TAB 1: CUSTOM QR REQUESTS */}
+        {activeTab === 'qr-requests' && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Custom QR Design Requests</h2>
+                <p className="text-xs text-muted-foreground">
+                  Branded QR stand configurations submitted by public users awaiting admin review, approval, and provisioning
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                <div className="flex rounded-md border border-border bg-white p-0.5 text-xs">
+                  {['ALL', 'NEW', 'CONTACTED', 'APPROVED', 'PROVISIONED', 'REJECTED'].map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setQrStatusFilter(st)}
+                      className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
+                        qrStatusFilter === st
+                          ? 'bg-accent text-white font-semibold shadow-xs'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <AdminQRRequestsTable
+              requests={filteredQRRequests}
+              onView={(r) => setSelectedQRRequest(r)}
+              onContact={(id) => handleLogQRContact(id)}
+              onApprove={(id) => handleApproveQR(id)}
+              onReject={(id) => {
+                setSelectedQRRequest(qrRequests.find((q) => q.id === id) || null);
+              }}
+              onProvision={(r) => handleOpenProvisionFromQR(r)}
+              contactingId={loggingContactId}
+              approvingId={approvingQRId}
+              copiedPhoneId={copiedPhoneId}
+              onCopyPhone={handleCopyPhone}
+            />
+          </div>
+        )}
+
+        {/* TAB 2: BUSINESS CONTACT INQUIRIES */}
         {activeTab === 'requests' && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Business Inquiries</h2>
+                <h2 className="text-lg font-semibold text-foreground">Contact & Lead Inquiries</h2>
                 <p className="text-xs text-muted-foreground">
-                  Inbound registration requests awaiting phone contact and account provisioning
+                  Standard registration inquiries awaiting sales phone contact
                 </p>
               </div>
 
@@ -350,9 +523,9 @@ export const AdminDashboardPage = () => {
                     <button
                       key={st}
                       onClick={() => setRequestStatusFilter(st)}
-                      className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                      className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
                         requestStatusFilter === st
-                          ? 'bg-muted text-foreground font-semibold shadow-2xs'
+                          ? 'bg-accent text-white font-semibold shadow-xs'
                           : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
@@ -360,28 +533,14 @@ export const AdminDashboardPage = () => {
                     </button>
                   ))}
                 </div>
-
-                <div className="relative w-full sm:w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Search business, owner, phone..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-border bg-white text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
-                  />
-                </div>
               </div>
             </div>
 
             <BusinessRequestTable
               requests={filteredRequests}
-              loading={loading}
-              searchQuery={searchQuery}
-              statusFilter={requestStatusFilter}
-              onSelectRequest={setSelectedRequest}
-              onLogContact={handleLogContact}
-              onOpenProvision={handleOpenProvisionFromRequest}
+              onView={(r) => setSelectedRequest(r)}
+              onContact={handleLogContact}
+              onProvision={handleOpenProvisionFromRequest}
               loggingContactId={loggingContactId}
               copiedPhoneId={copiedPhoneId}
               onCopyPhone={handleCopyPhone}
@@ -389,56 +548,71 @@ export const AdminDashboardPage = () => {
           </div>
         )}
 
-        {/* TAB 2: PROVISIONED BUSINESSES DIRECTORY */}
+        {/* TAB 3: PROVISIONED BUSINESSES */}
         {activeTab === 'businesses' && (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Provisioned Venues</h2>
-                <p className="text-xs text-muted-foreground">Directory of active Ratevia accounts and QR intake links</p>
-              </div>
-
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search business, slug, or owner..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md border border-border bg-white text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent"
-                />
+                <h2 className="text-lg font-semibold text-foreground">Provisioned Businesses Directory</h2>
+                <p className="text-xs text-muted-foreground">
+                  Active and suspended business accounts with live customer review intake
+                </p>
               </div>
             </div>
 
             <BusinessDirectoryTable
               businesses={filteredBusinesses}
-              loading={loading}
-              searchQuery={searchQuery}
               onToggleStatus={handleToggleStatus}
               updatingId={updatingId}
             />
           </div>
         )}
+
+        {/* TAB 4: PRICING SETTINGS */}
+        {activeTab === 'pricing' && (
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Pricing & Package Settings</h2>
+              <p className="text-xs text-muted-foreground">
+                Manage the public Ratevia QR stand package price and review price modification history
+              </p>
+            </div>
+
+            <AdminPricingCard token={session?.access_token} />
+          </div>
+        )}
       </div>
 
-      {/* Detail Modal */}
-      <BusinessRequestDetailModal
-        request={selectedRequest}
-        onClose={() => setSelectedRequest(null)}
-        onLogContact={handleLogContact}
-        onOpenProvision={handleOpenProvisionFromRequest}
-        loggingContactId={loggingContactId}
-        copiedPhoneId={copiedPhoneId}
-        onCopyPhone={handleCopyPhone}
-      />
+      {/* QR Request Detail Modal */}
+      {selectedQRRequest && (
+        <QRRequestDetailsModal
+          request={selectedQRRequest}
+          onClose={() => setSelectedQRRequest(null)}
+          onContact={handleLogQRContact}
+          onApprove={handleApproveQR}
+          onReject={handleRejectQR}
+          onProvision={handleOpenProvisionFromQR}
+          token={session?.access_token}
+        />
+      )}
 
-      {/* Provisioning Modal */}
+      {/* Standard Business Request Detail Modal */}
+      {selectedRequest && (
+        <BusinessRequestDetailModal
+          request={selectedRequest}
+          onClose={() => setSelectedRequest(null)}
+          onContact={handleLogContact}
+          onProvision={handleOpenProvisionFromRequest}
+          loggingContactId={loggingContactId}
+          copiedPhoneId={copiedPhoneId}
+          onCopyPhone={handleCopyPhone}
+        />
+      )}
+
+      {/* Provision Business Modal */}
       <ProvisionBusinessModal
         show={showProvisionModal}
-        onClose={() => {
-          setShowProvisionModal(false);
-          setProvisionRequestId(null);
-        }}
+        onClose={() => setShowProvisionModal(false)}
         onSubmit={handleProvisionSubmit}
         provisionName={provisionName}
         setProvisionName={setProvisionName}

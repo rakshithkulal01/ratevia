@@ -22,6 +22,9 @@ import { AuthCallbackPage } from './pages/auth/AuthCallbackPage';
 // Business Onboarding
 import { OnboardingPage } from './pages/onboarding/OnboardingPage';
 
+// Public QR Customizer
+import { PublicQRCustomizePage } from './pages/public/PublicQRCustomizePage';
+
 // Business Dashboard Pages
 import { DashboardOverviewPage } from './pages/dashboard/DashboardOverviewPage';
 import { AnalyticsPage } from './pages/dashboard/AnalyticsPage';
@@ -45,6 +48,7 @@ export function App() {
             {/* Public Routes */}
             <Route path="/" element={<HomePage />} />
             <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/qr-customize" element={<PublicQRCustomizePage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/design-system" element={<DesignSystemShowcase />} />
@@ -111,6 +115,30 @@ export function App() {
               element={
                 <ProtectedRoute>
                   <AdminDashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/qr-requests"
+              element={
+                <ProtectedRoute>
+                  <AdminDashboardPage defaultTab="qr-requests" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <ProtectedRoute>
+                  <AdminDashboardPage defaultTab="pricing" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/pricing"
+              element={
+                <ProtectedRoute>
+                  <AdminDashboardPage defaultTab="pricing" />
                 </ProtectedRoute>
               }
             />

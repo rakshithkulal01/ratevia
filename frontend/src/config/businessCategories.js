@@ -22,6 +22,13 @@ export const BUSINESS_CATEGORIES = {
     category: 'CAFE',
     displayName: 'Café',
     icon: Coffee,
+    brandTheme: {
+      defaultAccent: 'warm',
+      accentColor: '#D97706',
+      badgeClasses: 'bg-amber-50 text-amber-800 border-amber-200',
+      mood: 'Warm & Welcoming',
+      tagline: 'Artisan Coffee & Warm Sips',
+    },
     positiveTopics: [
       'Food Quality',
       'Taste',
@@ -47,6 +54,13 @@ export const BUSINESS_CATEGORIES = {
     category: 'RESTAURANT',
     displayName: 'Restaurant',
     icon: UtensilsCrossed,
+    brandTheme: {
+      defaultAccent: 'elegant',
+      accentColor: '#0F766E',
+      badgeClasses: 'bg-teal-50 text-teal-800 border-teal-200',
+      mood: 'Refined & Dining-Oriented',
+      tagline: 'Fine Dining & Flavor Excellence',
+    },
     positiveTopics: [
       'Food Quality',
       'Taste',
@@ -73,6 +87,13 @@ export const BUSINESS_CATEGORIES = {
     category: 'HOTEL',
     displayName: 'Hotel',
     icon: Hotel,
+    brandTheme: {
+      defaultAccent: 'elegant',
+      accentColor: '#1E3A8A',
+      badgeClasses: 'bg-blue-50 text-blue-900 border-blue-200',
+      mood: 'Premium & Elegant',
+      tagline: 'Boutique Hospitality & Comfort',
+    },
     positiveTopics: [
       'Room Quality',
       'Cleanliness',
@@ -99,6 +120,13 @@ export const BUSINESS_CATEGORIES = {
     category: 'CLOTHING_SHOP',
     displayName: 'Clothing Shop',
     icon: Shirt,
+    brandTheme: {
+      defaultAccent: 'ratevia-blue',
+      accentColor: '#7C3AED',
+      badgeClasses: 'bg-purple-50 text-purple-800 border-purple-200',
+      mood: 'Fashion-Oriented & Minimal',
+      tagline: 'Curated Style & Apparel',
+    },
     positiveTopics: [
       'Product Variety',
       'Product Quality',
@@ -124,6 +152,13 @@ export const BUSINESS_CATEGORIES = {
     category: 'ELECTRONICS_SHOP',
     displayName: 'Electronics Shop',
     icon: Smartphone,
+    brandTheme: {
+      defaultAccent: 'ratevia-blue',
+      accentColor: '#0284C7',
+      badgeClasses: 'bg-sky-50 text-sky-800 border-sky-200',
+      mood: 'Modern & Technical',
+      tagline: 'Innovative Devices & Tech Gear',
+    },
     positiveTopics: [
       'Product Quality',
       'Product Variety',
@@ -149,6 +184,13 @@ export const BUSINESS_CATEGORIES = {
     category: 'SALON',
     displayName: 'Salon',
     icon: Scissors,
+    brandTheme: {
+      defaultAccent: 'elegant',
+      accentColor: '#BE185D',
+      badgeClasses: 'bg-rose-50 text-rose-800 border-rose-200',
+      mood: 'Elegant & Sophisticated',
+      tagline: 'Grooming, Style & Personal Care',
+    },
     positiveTopics: [
       'Service Quality',
       'Staff Friendliness',
@@ -173,6 +215,13 @@ export const BUSINESS_CATEGORIES = {
     category: 'GARAGE',
     displayName: 'Garage / Auto Service',
     icon: Wrench,
+    brandTheme: {
+      defaultAccent: 'neutral',
+      accentColor: '#334155',
+      badgeClasses: 'bg-slate-100 text-slate-800 border-slate-300',
+      mood: 'Strong & Industrial',
+      tagline: 'Precision Auto Care & Mechanics',
+    },
     positiveTopics: [
       'Service Quality',
       'Repair Quality',
@@ -198,6 +247,13 @@ export const BUSINESS_CATEGORIES = {
     category: 'BAKERY',
     displayName: 'Bakery',
     icon: Croissant,
+    brandTheme: {
+      defaultAccent: 'warm',
+      accentColor: '#EA580C',
+      badgeClasses: 'bg-orange-50 text-orange-800 border-orange-200',
+      mood: 'Warm & Friendly',
+      tagline: 'Fresh Oven Bakes & Sweet Treats',
+    },
     positiveTopics: [
       'Taste',
       'Freshness',
@@ -223,6 +279,13 @@ export const BUSINESS_CATEGORIES = {
     category: 'GYM',
     displayName: 'Gym',
     icon: Dumbbell,
+    brandTheme: {
+      defaultAccent: 'bold',
+      accentColor: '#DC2626',
+      badgeClasses: 'bg-red-50 text-red-800 border-red-200',
+      mood: 'Energetic & Bold',
+      tagline: 'Fitness, Strength & Energy',
+    },
     positiveTopics: [
       'Equipment Quality',
       'Cleanliness',
@@ -250,6 +313,13 @@ export const BUSINESS_CATEGORIES = {
     category: 'RETAIL_SHOP',
     displayName: 'Retail Shop',
     icon: ShoppingBag,
+    brandTheme: {
+      defaultAccent: 'ratevia-blue',
+      accentColor: '#059669',
+      badgeClasses: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+      mood: 'Clean & Commercial',
+      tagline: 'Neighborhood Goods & Essentials',
+    },
     positiveTopics: [
       'Product Variety',
       'Product Quality',
@@ -274,6 +344,13 @@ export const BUSINESS_CATEGORIES = {
     category: 'OTHER',
     displayName: 'Other',
     icon: Store,
+    brandTheme: {
+      defaultAccent: 'ratevia-blue',
+      accentColor: '#0052FF',
+      badgeClasses: 'bg-blue-50 text-blue-800 border-blue-200',
+      mood: 'Neutral & Trusted',
+      tagline: 'Quality Service & Customer Care',
+    },
     positiveTopics: [
       'Product/Service Quality',
       'Staff Friendliness',

@@ -23,8 +23,10 @@ import {
   UtensilsCrossed,
 } from 'lucide-react';
 import { getCategoryOptions } from '../../config/businessCategories';
+import { usePlatformPrice } from '../../hooks/usePlatformPrice';
 
 export const HomePage = () => {
+  const { formattedPrice } = usePlatformPrice();
   // Interactive Product Preview Step
   const [activeStep, setActiveStep] = useState(0);
 
@@ -146,23 +148,24 @@ export const HomePage = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row items-center gap-3 pt-2 w-full sm:w-auto">
-            <Link to="/contact" className="w-full sm:w-auto">
-              <Button variant="primary" size="lg" className="w-full sm:w-auto shadow-md shadow-accent/20">
-                <span>Get Ratevia — ₹1,000 One-Time</span>
-                <ArrowRight className="ml-2 h-4 w-4" />
+            <Link to="/qr-customize" className="w-full sm:w-auto">
+              <Button variant="primary" size="lg" className="w-full sm:w-auto shadow-md shadow-accent/20 gap-2">
+                <Sparkles className="h-4 w-4" />
+                <span>Customize QR Stand — {formattedPrice}</span>
+                <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
             </Link>
-            <a href="#how-it-works" className="w-full sm:w-auto">
+            <Link to="/contact" className="w-full sm:w-auto">
               <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                See How It Works
+                Contact Sales
               </Button>
-            </a>
+            </Link>
           </div>
 
           <div className="flex flex-wrap justify-center items-center gap-6 pt-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-              ₹1,000 One-Time Payment
+              {formattedPrice} One-Time Payment
             </span>
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
@@ -356,18 +359,19 @@ export const HomePage = () => {
           Ready to elevate your business's Google reputation?
         </h2>
         <p className="text-sm text-muted-foreground max-w-xl mx-auto">
-          Get started with Ratevia for a ₹1,000 one-time payment. Our team will provision your venue, generate your custom QR code standee, and activate your dashboard.
+          Get started with Ratevia for a {formattedPrice} one-time payment. Our team will provision your venue, generate your custom QR code standee, and activate your dashboard.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-          <Link to="/contact">
-            <Button variant="primary" size="lg">
-              Contact Us to Get Ratevia
-              <ArrowRight className="ml-2 h-4 w-4" />
+          <Link to="/qr-customize">
+            <Button variant="primary" size="lg" className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              <span>Customize QR Stand</span>
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
-          <Link to="/pricing">
+          <Link to="/contact">
             <Button variant="outline" size="lg">
-              View Pricing Details
+              Contact Sales
             </Button>
           </Link>
         </div>

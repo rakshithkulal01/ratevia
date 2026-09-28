@@ -3,19 +3,21 @@ import { Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { ChevronDown, ArrowRight } from 'lucide-react';
+import { ChevronDown, ArrowRight, Sparkles } from 'lucide-react';
+import { usePlatformPrice } from '../../hooks/usePlatformPrice';
 
 export const FAQPage = () => {
   const [openIdx, setOpenIdx] = useState(0);
+  const { formattedPrice } = usePlatformPrice();
 
   const faqs = [
     {
       q: 'How does Ratevia pricing work?',
-      a: 'Ratevia is available for a ₹1,000 one-time payment for small businesses. There are no monthly subscriptions, recurring fees, or limits on customer QR scans or feedback submissions.',
+      a: `Ratevia is available for a ${formattedPrice} one-time payment for small businesses. There are no monthly subscriptions, recurring fees, or limits on customer QR scans or feedback submissions.`,
     },
     {
       q: 'How does a business get started with Ratevia?',
-      a: 'Because Ratevia is a curated product for small hospitality venues, businesses are provisioned directly by our administrative team. Once you contact us, we set up your venue profile, configure your target Google review URL, and provide your dashboard credentials along with high-resolution printable QR standee graphics.',
+      a: 'Because Ratevia is a curated product for small hospitality venues, businesses are provisioned directly by our administrative team. Once you contact us or submit your customized QR stand, we review your venue profile, configure your target destination URL, and provide your dashboard credentials along with high-resolution printable QR standee graphics.',
     },
     {
       q: 'Does Ratevia comply with Google Maps review guidelines?',
@@ -54,7 +56,7 @@ export const FAQPage = () => {
           Frequently Asked Questions<span className="text-accent">.</span>
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-          Everything you need to know about our ₹1,000 one-time model, Google compliance, and privacy-first data retention.
+          Everything you need to know about our {formattedPrice} one-time model, Google compliance, and privacy-first data retention.
         </p>
       </div>
 
@@ -98,13 +100,19 @@ export const FAQPage = () => {
       <Card className="p-8 text-center space-y-4 bg-muted/20">
         <h3 className="font-display text-xl text-foreground">Ready to get Ratevia for your venue?</h3>
         <p className="text-xs text-muted-foreground max-w-md mx-auto">
-          Contact our team to get your business provisioned for a ₹1,000 one-time payment.
+          Customize your QR stand or contact our team to get your business provisioned for a {formattedPrice} one-time payment.
         </p>
-        <div className="pt-2">
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Link to="/qr-customize">
+            <Button variant="primary" size="md" className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              <span>Customize QR Stand</span>
+              <ArrowRight className="ml-1 h-4 w-4" />
+            </Button>
+          </Link>
           <Link to="/contact">
-            <Button variant="primary" size="md">
-              Contact Us to Get Ratevia
-              <ArrowRight className="ml-2 h-4 w-4" />
+            <Button variant="outline" size="md">
+              Contact Us Directly
             </Button>
           </Link>
         </div>

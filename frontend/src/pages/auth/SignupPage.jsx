@@ -7,10 +7,12 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { GoogleIcon } from '../../components/ui/GoogleIcon';
 import { AlertCircle, ArrowRight, Loader2, MailCheck } from 'lucide-react';
+import { usePlatformPrice } from '../../hooks/usePlatformPrice';
 
 export const SignupPage = () => {
   const { signInWithGoogle, signUpWithEmail } = useAuth();
   const navigate = useNavigate();
+  const { formattedPrice } = usePlatformPrice();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -126,7 +128,7 @@ export const SignupPage = () => {
         {/* Header */}
         <div className="text-center space-y-3">
           <Badge variant="outline">
-            ₹1,000 One-Time Access
+            {formattedPrice} One-Time Access
           </Badge>
           <h1 className="font-display text-4xl sm:text-5xl text-foreground tracking-tight">
             Create account<span className="text-accent">.</span>

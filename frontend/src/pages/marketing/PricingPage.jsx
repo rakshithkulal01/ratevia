@@ -3,9 +3,12 @@ import { Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { CheckCircle2, ArrowRight } from 'lucide-react';
+import { CheckCircle2, ArrowRight, Sparkles } from 'lucide-react';
+import { usePlatformPrice } from '../../hooks/usePlatformPrice';
 
 export const PricingPage = () => {
+  const { formattedPrice } = usePlatformPrice();
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 space-y-16">
       {/* Header */}
@@ -38,7 +41,7 @@ export const PricingPage = () => {
             </div>
 
             <div className="flex items-baseline gap-2 pt-2">
-              <span className="font-display text-4xl font-bold text-foreground">₹1,000</span>
+              <span className="font-display text-4xl font-bold text-foreground">{formattedPrice}</span>
               <span className="text-xs font-medium text-muted-foreground">one-time payment</span>
             </div>
 
@@ -67,11 +70,17 @@ export const PricingPage = () => {
             </p>
           </div>
 
-          <div className="pt-6">
+          <div className="pt-6 flex flex-col gap-2.5">
+            <Link to="/qr-customize" className="w-full">
+              <Button variant="primary" size="lg" className="w-full justify-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                <span>Customize Your QR Stand</span>
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
             <Link to="/contact" className="w-full">
-              <Button variant="primary" size="lg" className="w-full justify-center">
-                <span>Contact Us to Get Ratevia</span>
-                <ArrowRight className="ml-2 h-4 w-4" />
+              <Button variant="outline" size="md" className="w-full justify-center">
+                <span>Or Contact Us Directly</span>
               </Button>
             </Link>
           </div>
@@ -80,7 +89,7 @@ export const PricingPage = () => {
 
       {/* FAQ Teaser */}
       <div className="max-w-2xl mx-auto text-center space-y-4 pt-4">
-        <h3 className="font-display text-xl text-foreground">Have questions about our ₹1,000 one-time plan?</h3>
+        <h3 className="font-display text-xl text-foreground">Have questions about our {formattedPrice} one-time plan?</h3>
         <p className="text-xs text-muted-foreground">
           Learn more about how our QR codes work, data privacy policies, and admin provisioning.
         </p>

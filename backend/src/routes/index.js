@@ -7,6 +7,7 @@ import feedbackRouter from './feedbackRoutes.js';
 import analyticsRouter from './analyticsRoutes.js';
 import adminRouter from './adminRoutes.js';
 import businessRequestRouter from './businessRequestRoutes.js';
+import publicRouter from './publicRoutes.js';
 
 const router = Router();
 
@@ -18,5 +19,6 @@ router.use('/feedback', feedbackRouter);
 router.use('/analytics', analyticsRouter);
 router.use('/admin', adminRouter);
 router.use('/business-requests', businessRequestRouter);
+router.use('/public', publicRouter);
 
 export default router;

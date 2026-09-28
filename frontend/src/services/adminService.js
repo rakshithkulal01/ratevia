@@ -54,6 +54,70 @@ export const adminService = {
       token,
     });
   },
+
+  /**
+   * Fetch QR customization requests with optional status filter
+   */
+  getQRRequests: (token, status = 'ALL') => {
+    const query = status && status !== 'ALL' ? `?status=${encodeURIComponent(status)}` : '';
+    return apiRequest(`/api/admin/qr-requests${query}`, { token });
+  },
+
+  /**
+   * Fetch complete details of a single QR customization request
+   */
+  getQRRequestById: (token, id) => {
+    return apiRequest(`/api/admin/qr-requests/${id}`, { token });
+  },
+
+  /**
+   * Mark a QR request as CONTACTED
+   */
+  logQRContact: (token, id) => {
+    return apiRequest(`/api/admin/qr-requests/${id}/contact`, {
+      method: 'PATCH',
+      token,
+    });
+  },
+
+  /**
+   * Approve a QR customization request
+   */
+  approveQRRequest: (token, id) => {
+    return apiRequest(`/api/admin/qr-requests/${id}/approve`, {
+      method: 'POST',
+      token,
+    });
+  },
+
+  /**
+   * Reject a QR customization request with optional reason
+   */
+  rejectQRRequest: (token, id, reason) => {
+    return apiRequest(`/api/admin/qr-requests/${id}/reject`, {
+      method: 'POST',
+      body: { reason },
+      token,
+    });
+  },
+
+  /**
+   * Fetch current admin pricing settings and history
+   */
+  getPricingSettings: (token) => {
+    return apiRequest('/api/admin/settings/price', { token });
+  },
+
+  /**
+   * Update Ratevia pricing
+   */
+  updatePricingSettings: (token, payload) => {
+    return apiRequest('/api/admin/settings/price', {
+      method: 'PUT',
+      body: payload,
+      token,
+    });
+  },
 };
 
 export default adminService;

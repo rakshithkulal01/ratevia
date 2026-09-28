@@ -5,8 +5,10 @@ import { businessRequestService } from '../../services/businessRequestService';
 import { PlanHighlightsCard } from '../../components/contact/PlanHighlightsCard';
 import { BusinessRequestForm } from '../../components/contact/BusinessRequestForm';
 import { BusinessRequestSuccess } from '../../components/contact/BusinessRequestSuccess';
+import { usePlatformPrice } from '../../hooks/usePlatformPrice';
 
 export const ContactPage = () => {
+  const { formattedPrice } = usePlatformPrice();
   const [ownerName, setOwnerName] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState('CAFE');
@@ -80,7 +82,7 @@ export const ContactPage = () => {
           Request Ratevia for Your Business<span className="text-accent">.</span>
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-          Ratevia is ₹1,000 one-time for local businesses with zero recurring subscription fees. Fill in your details below and our team will get in touch to set up your venue.
+          Ratevia is {formattedPrice} one-time for local businesses with zero recurring subscription fees. Fill in your details below and our team will get in touch to set up your venue.
         </p>
       </div>
 
