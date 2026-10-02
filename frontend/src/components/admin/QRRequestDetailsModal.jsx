@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
-import { BrandedQRCard } from '../dashboard/BrandedQRCard';
+import { RateviaStickerPreview } from '../dashboard/RateviaStickerPreview';
 import { getQRBrandConfig } from '../../utils/qrBrandUtils';
 import {
   X,
@@ -62,6 +62,11 @@ export const QRRequestDetailsModal = ({
   const handleDownload = async (format) => {
     try {
       setDownloading(true);
+      const safeSlug = (request.businessName || 'ratevia')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'sticker';
+
       const url = `${API_BASE_URL}/api/admin/qr-requests/${request.id}/download?format=${format}`;
       const res = await fetch(url, {
         headers: {
@@ -75,12 +80,16 @@ export const QRRequestDetailsModal = ({
       const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = `ratevia-${(request.businessName || 'qr').toLowerCase().replace(/\s+/g, '-')}.${format}`;
+      const extension = format === 'sticker' ? 'png' : format;
+      const filename = format === 'sticker'
+        ? `${safeSlug}-ratevia-sticker.png`
+        : `ratevia-${safeSlug}-qr.${extension}`;
+      link.download = filename;
       link.click();
       URL.revokeObjectURL(downloadUrl);
     } catch (err) {
-      console.error('QR download error:', err);
-      alert('Failed to download QR code. Please try again.');
+      console.error('Download error:', err);
+      alert('Failed to download sticker. Please try again.');
     } finally {
       setDownloading(false);
     }
@@ -242,47 +251,113 @@ export const QRRequestDetailsModal = ({
             )}
           </div>
 
-          {/* Right Column: Live Branded QR Stand Preview */}
+          {/* Right Column: Submitted Ratevia Sticker Preview */}
           <div className="md:col-span-5 flex flex-col items-center space-y-4">
-            <span className="font-mono text-[11px] uppercase font-semibold text-slate-500 tracking-wider">
-              Submitted QR Card Design
-            </span>
+            <div className="flex items-center justify-between w-full">
+              <span className="font-mono text-[11px] uppercase font-semibold text-slate-500 tracking-wider">
+                Submitted Sticker Design
+              </span>
+              <Badge variant="outline" className="text-[10px] font-mono text-accent bg-accent/5">
+                Sticker Preview
+              </Badge>
+            </div>
 
-            {brandConfig && (
-              <BrandedQRCard
-                business={{
-                  name: request.businessName,
-                  businessType: request.businessType,
-                }}
-                customerUrl={request.destinationUrl}
-                config={brandConfig}
-                size={190}
-                className="scale-95"
-              />
+            {request.stickerImageUrl ? (
+              <div className="w-full max-w-[280px] sm:max-w-[310px] rounded-[24px] overflow-hidden shadow-xl border border-slate-200/90 bg-white group relative">
+                <img
+                  src={
+                    request.stickerImageUrl.startsWith('/')
+                      ? `${API_BASE_URL}${request.stickerImageUrl}`
+                      : request.stickerImageUrl
+                  }
+                  alt={`Ratevia Sticker for ${request.businessName}`}
+                  className="w-full h-auto object-contain block select-none"
+                />
+              </div>
+            ) : (Date.now() - new Date(request.createdAt).getTime() > 25 * 24 * 60 * 60 * 1000) ? (
+              <div className="w-full max-w-[280px] sm:max-w-[310px] rounded-2xl border border-amber-200/90 bg-amber-50/70 p-6 text-center space-y-3 shadow-xs">
+                <div className="h-10 w-10 rounded-full bg-amber-100 text-amber-600 mx-auto flex items-center justify-center">
+                  <Clock className="h-5 w-5" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-semibold text-sm text-slate-900">Sticker preview expired</h4>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    This stored preview was automatically removed after 25 days.
+                  </p>
+                </div>
+                <div className="pt-1 text-[11px] text-muted-foreground font-mono bg-white/80 p-2 rounded-lg border border-amber-200/50">
+                  Business details & QR configuration remain permanently preserved.
+                </div>
+              </div>
+            ) : (
+              /* Fallback to live RateviaStickerPreview for legacy or recent requests */
+              <div className="w-full flex justify-center">
+                <RateviaStickerPreview
+                  businessName={request.businessName}
+                  tagline={request.qrConfig?.tagline || ''}
+                  customerUrl={request.destinationUrl}
+                  config={brandConfig}
+                  badgeType={request.qrConfig?.badgeType || 'sparkle'}
+                  className="max-w-[270px]"
+                />
+              </div>
             )}
 
-            {/* Download Actions */}
-            <div className="w-full flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDownload('svg')}
-                disabled={downloading}
-                className="flex-1 text-xs"
-              >
-                <Download className="h-3.5 w-3.5 mr-1" />
-                Download SVG
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDownload('png')}
-                disabled={downloading}
-                className="flex-1 text-xs"
-              >
-                <Download className="h-3.5 w-3.5 mr-1" />
-                Download PNG
-              </Button>
+            {/* Primary Download Button & Actions */}
+            <div className="w-full space-y-2 pt-1">
+              {request.stickerImageUrl || (Date.now() - new Date(request.createdAt).getTime() <= 25 * 24 * 60 * 60 * 1000) ? (
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={() => handleDownload('sticker')}
+                  disabled={downloading}
+                  className="w-full text-xs font-semibold shadow-sm"
+                >
+                  {downloading ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      Downloading Sticker...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-3.5 w-3.5 mr-1.5" />
+                      Download Sticker (PNG)
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="md"
+                  disabled
+                  className="w-full text-xs font-medium text-muted-foreground border-dashed"
+                >
+                  Sticker Image Expired (25d)
+                </Button>
+              )}
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDownload('svg')}
+                  disabled={downloading}
+                  className="flex-1 text-[11px] h-8"
+                >
+                  <Download className="h-3 w-3 mr-1" />
+                  Raw SVG
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDownload('png')}
+                  disabled={downloading}
+                  className="flex-1 text-[11px] h-8"
+                >
+                  <Download className="h-3 w-3 mr-1" />
+                  Raw PNG
+                </Button>
+              </div>
             </div>
           </div>
         </div>

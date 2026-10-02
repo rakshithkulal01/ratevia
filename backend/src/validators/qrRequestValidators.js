@@ -53,10 +53,14 @@ export const createPublicQRRequestSchema = z.object({
       selectedStyle: z.string().optional().default('classic'),
       selectedMessage: z.string().max(200).optional(),
       initials: z.string().max(10).optional(),
+      tagline: z.string().max(100).optional(),
+      badgeType: z.string().optional(),
     })
     .passthrough()
     .optional()
     .default({}),
+  stickerImage: z.string().optional(),
+  stickerImageUrl: z.string().optional(),
 });
 
 export const updatePriceSchema = z.object({

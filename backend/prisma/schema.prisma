@@ -190,6 +190,8 @@ model BusinessRequest {
   message               String?
   destinationUrl        String?
   qrConfig              Json?
+  stickerImageUrl       String?
+  stickerImageCreatedAt DateTime?
   quotedPrice           Decimal?              @db.Decimal(10, 2)
   status                BusinessRequestStatus @default(NEW)
   contactedAt           DateTime?
@@ -209,6 +211,7 @@ model BusinessRequest {
   updatedAt             DateTime              @updatedAt
 
   @@index([status])
+  @@index([stickerImageCreatedAt])
   @@index([createdAt])
   @@index([phoneNumber])
   @@index([email])

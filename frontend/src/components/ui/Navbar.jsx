@@ -44,20 +44,21 @@ export const Navbar = () => {
         <nav className="hidden items-center gap-8 md:flex">
           {session ? (
             <>
-              <Link
-                to="/dashboard"
-                className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                Dashboard
-              </Link>
-              {userRole === 'ADMIN' && (
+              {userRole === 'ADMIN' ? (
                 <Link
                   to="/admin"
-                  className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                  className="flex items-center gap-1.5 text-sm font-semibold text-accent transition-colors hover:text-accent-secondary"
                 >
                   <Shield className="h-4 w-4 text-accent" />
-                  Admin
+                  Admin Panel
+                </Link>
+              ) : (
+                <Link
+                  to="/dashboard"
+                  className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                  Dashboard
                 </Link>
               )}
             </>
@@ -167,20 +168,23 @@ export const Navbar = () => {
                     <span className="text-xs text-muted-foreground">{user?.email}</span>
                   </div>
                 </div>
-                <Link
-                  to="/dashboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground"
-                >
-                  Dashboard
-                </Link>
-                {userRole === 'ADMIN' && (
+                {userRole === 'ADMIN' ? (
                   <Link
                     to="/admin"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground"
+                    className="text-sm font-semibold text-accent hover:text-accent-secondary flex items-center gap-2"
                   >
-                    Admin Control Center
+                    <Shield className="h-4 w-4" />
+                    Admin Panel
+                  </Link>
+                ) : (
+                  <Link
+                    to="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="text-sm font-medium text-muted-foreground hover:text-foreground flex items-center gap-2"
+                  >
+                    <LayoutDashboard className="h-4 w-4" />
+                    Dashboard
                   </Link>
                 )}
                 <Button

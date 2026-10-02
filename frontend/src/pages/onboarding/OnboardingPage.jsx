@@ -16,7 +16,7 @@ import { usePlatformPrice } from '../../hooks/usePlatformPrice';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export const OnboardingPage = () => {
-  const { session, logout } = useAuth();
+  const { session, user, signOut } = useAuth();
   const navigate = useNavigate();
   const { formattedPrice } = usePlatformPrice();
 
@@ -24,6 +24,12 @@ export const OnboardingPage = () => {
   const [hasBusiness, setHasBusiness] = useState(false);
 
   const checkBusinessStatus = async () => {
+    // If the authenticated user is an ADMIN, they do not belong in business onboarding
+    if (user?.role === 'ADMIN') {
+      navigate('/admin', { replace: true });
+      return;
+    }
+
     if (!session?.access_token) return;
     setCheckingExisting(true);
 
@@ -50,8 +56,12 @@ export const OnboardingPage = () => {
   };
 
   useEffect(() => {
+    if (user?.role === 'ADMIN') {
+      navigate('/admin', { replace: true });
+      return;
+    }
     checkBusinessStatus();
-  }, [session, navigate]);
+  }, [session, user, navigate]);
 
   if (checkingExisting) {
     return (

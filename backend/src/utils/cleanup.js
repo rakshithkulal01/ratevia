@@ -1,4 +1,5 @@
 import prisma from '../config/prisma.js';
+import { runStickerRetentionCleanup } from '../services/stickerRetentionService.js';
 
 let isRunning = false;
 
@@ -62,7 +63,10 @@ export function startCleanupScheduler() {
   // Initial run after a short delay on server startup
   setTimeout(() => {
     runDataRetentionCleanup().catch((err) =>
-      console.error('[Cleanup] Startup cleanup failed:', err)
+      console.error('[Cleanup] Startup feedback cleanup failed:', err)
+    );
+    runStickerRetentionCleanup().catch((err) =>
+      console.error('[Cleanup] Startup sticker retention cleanup failed:', err)
     );
   }, 10000);
 
@@ -70,9 +74,13 @@ export function startCleanupScheduler() {
   const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
   setInterval(() => {
     runDataRetentionCleanup().catch((err) =>
-      console.error('[Cleanup] Scheduled cleanup failed:', err)
+      console.error('[Cleanup] Scheduled feedback cleanup failed:', err)
+    );
+    runStickerRetentionCleanup().catch((err) =>
+      console.error('[Cleanup] Scheduled sticker retention cleanup failed:', err)
     );
   }, TWENTY_FOUR_HOURS);
 
-  console.log('[Cleanup] 30-day automated raw feedback cleanup scheduler started.');
+  console.log('[Cleanup] Automated 30-day feedback & 25-day sticker image retention schedulers active.');
 }
+

@@ -3,8 +3,8 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Sparkles } from 'lucide-react';
 
-export const ProtectedRoute = ({ children }) => {
-  const { session, loading } = useAuth();
+export const ProtectedRoute = ({ children, requiredRole = null }) => {
+  const { session, user, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -20,8 +20,24 @@ export const ProtectedRoute = ({ children }) => {
     );
   }
 
+  // 1. Unauthenticated -> Send to /login with return path
   if (!session) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  const userRole = user?.role || 'BUSINESS_OWNER';
+
+  // 2. Admin Route Protection: /admin requires role === 'ADMIN'
+  if (requiredRole === 'ADMIN') {
+    if (userRole !== 'ADMIN') {
+      // Business user attempting to access /admin -> reject / redirect to dashboard
+      return <Navigate to="/dashboard" replace />;
+    }
+  }
+
+  // 3. Admin Isolation: An ADMIN should never be routed to business onboarding or business dashboard
+  if (userRole === 'ADMIN' && (location.pathname === '/onboarding' || location.pathname === '/dashboard')) {
+    return <Navigate to="/admin" replace />;
   }
 
   return children;

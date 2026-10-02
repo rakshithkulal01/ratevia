@@ -113,7 +113,7 @@ export function App() {
             <Route
               path="/admin"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="ADMIN">
                   <AdminDashboardPage />
                 </ProtectedRoute>
               }
@@ -121,7 +121,7 @@ export function App() {
             <Route
               path="/admin/qr-requests"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="ADMIN">
                   <AdminDashboardPage defaultTab="qr-requests" />
                 </ProtectedRoute>
               }
@@ -129,7 +129,7 @@ export function App() {
             <Route
               path="/admin/settings"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="ADMIN">
                   <AdminDashboardPage defaultTab="pricing" />
                 </ProtectedRoute>
               }
@@ -137,7 +137,7 @@ export function App() {
             <Route
               path="/admin/pricing"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="ADMIN">
                   <AdminDashboardPage defaultTab="pricing" />
                 </ProtectedRoute>
               }
@@ -145,7 +145,7 @@ export function App() {
             <Route
               path="/admin/admins"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requiredRole="ADMIN">
                   <AdminDashboardPage defaultTab="admins" />
                 </ProtectedRoute>
               }

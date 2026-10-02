@@ -29,6 +29,11 @@ export const DashboardLayout = ({ children, activeTab }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (user?.role === 'ADMIN') {
+      navigate('/admin', { replace: true });
+      return;
+    }
+
     let mounted = true;
     const fetchBusiness = async () => {
       if (!session?.access_token) return;
@@ -63,7 +68,7 @@ export const DashboardLayout = ({ children, activeTab }) => {
     return () => {
       mounted = false;
     };
-  }, [session, navigate]);
+  }, [session, user, navigate]);
 
   const navItems = [
     { label: 'Overview', path: '/dashboard', icon: LayoutDashboard, exact: true },

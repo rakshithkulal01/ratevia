@@ -13,10 +13,12 @@ export const AuthProvider = ({ children }) => {
 
   // Synchronize authenticated user with Ratevia PostgreSQL backend
   const syncWithBackend = useCallback(async (currentSession) => {
-    if (!currentSession?.access_token) return;
+    if (!currentSession?.access_token) return null;
 
     // Prevent duplicate sync calls for same access token
-    if (lastSyncedToken.current === currentSession.access_token) return;
+    if (lastSyncedToken.current === currentSession.access_token) {
+      return user;
+    }
     lastSyncedToken.current = currentSession.access_token;
 
     try {
@@ -31,10 +33,12 @@ export const AuthProvider = ({ children }) => {
       if (response.ok) {
         const data = await response.json();
         // Merge Supabase user with PostgreSQL DB user info (role, id, etc.)
-        setUser((prev) => ({
+        const mergedUser = {
           ...currentSession.user,
           ...data.user,
-        }));
+        };
+        setUser(mergedUser);
+        return mergedUser;
       } else {
         const errData = await response.json().catch(() => ({}));
         console.error('[AuthContext] Backend sync failed:', errData.message || response.statusText);
@@ -42,7 +46,8 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error('[AuthContext] Network error during backend user sync:', err.message);
     }
-  }, []);
+    return null;
+  }, [user]);
 
   useEffect(() => {
     if (!supabase) {
@@ -53,7 +58,7 @@ export const AuthProvider = ({ children }) => {
     // Initialize session
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => {
+    supabase.auth.getSession().then(async ({ data: { session: initialSession }, error }) => {
       if (!mounted) return;
       if (error) {
         console.error('[AuthContext] Error retrieving session:', error.message);
@@ -62,7 +67,9 @@ export const AuthProvider = ({ children }) => {
       setSession(initialSession);
       if (initialSession?.user) {
         setUser(initialSession.user);
-        syncWithBackend(initialSession);
+        await syncWithBackend(initialSession);
+      } else {
+        setUser(null);
       }
       setLoading(false);
     });
@@ -113,7 +120,25 @@ export const AuthProvider = ({ children }) => {
       password,
     });
     if (error) throw error;
+
+    if (data?.session) {
+      setSession(data.session);
+      const syncedUser = await syncWithBackend(data.session);
+      return { ...data, dbUser: syncedUser };
+    }
     return data;
+  };
+
+  // Explicit session refresh
+  const refreshSession = async () => {
+    if (!supabase) return null;
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error) throw error;
+    if (data?.session) {
+      setSession(data.session);
+      await syncWithBackend(data.session);
+    }
+    return data?.session;
   };
 
   // Sign up with Email, Password and Name metadata
@@ -161,6 +186,7 @@ export const AuthProvider = ({ children }) => {
     signInWithEmail,
     signUpWithEmail,
     resetPassword,
+    refreshSession,
     signOut,
   };
 

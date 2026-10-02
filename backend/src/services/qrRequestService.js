@@ -2,6 +2,8 @@ import prisma from '../config/prisma.js';
 import { Prisma } from '@prisma/client';
 import { normalizePhoneNumber } from '../utils/phone.js';
 import pricingService from './pricingService.js';
+import { storeStickerImage } from '../utils/stickerStorage.js';
+import crypto from 'crypto';
 
 export const qrRequestService = {
   /**
@@ -18,6 +20,8 @@ export const qrRequestService = {
     city,
     destinationUrl,
     qrConfig,
+    stickerImage,
+    stickerImageUrl,
   }) => {
     // 1. Phone normalization
     const combinedPhone = phone.startsWith('+') ? phone : `${countryCode} ${phone}`;
@@ -58,9 +62,17 @@ export const qrRequestService = {
     // 4. Capture current price snapshot
     const { price, currency } = await pricingService.getPublicPrice();
 
-    // 5. Store Request Entity
+    // 5. Store Rendered Sticker Image (if provided)
+    const requestId = crypto.randomUUID();
+    let finalStickerUrl = null;
+    if (stickerImage || stickerImageUrl) {
+      finalStickerUrl = await storeStickerImage(requestId, stickerImage || stickerImageUrl);
+    }
+
+    // 6. Store Request Entity
     const request = await prisma.businessRequest.create({
       data: {
+        id: requestId,
         ownerName: contactName,
         businessName,
         businessType: category,
@@ -69,6 +81,8 @@ export const qrRequestService = {
         city: city || null,
         destinationUrl: destinationUrl.trim(),
         qrConfig: qrConfig || {},
+        stickerImageUrl: finalStickerUrl,
+        stickerImageCreatedAt: finalStickerUrl ? new Date() : null,
         quotedPrice: new Prisma.Decimal(price),
         status: 'NEW',
       },
@@ -77,7 +91,7 @@ export const qrRequestService = {
     const referenceId = `RV-${request.id.slice(0, 8).toUpperCase()}`;
 
     console.log(
-      `[QRRequest] New QR customization request "${referenceId}" submitted for "${businessName}" (Quoted: ₹${price})`
+      `[QRRequest] New QR customization request "${referenceId}" submitted for "${businessName}" (Quoted: ₹${price}, Sticker: ${finalStickerUrl ? 'Stored' : 'None'})`
     );
 
     return {
@@ -88,6 +102,7 @@ export const qrRequestService = {
       quotedPrice: Number(request.quotedPrice),
       currency,
       destinationUrl: request.destinationUrl,
+      stickerImageUrl: request.stickerImageUrl,
       createdAt: request.createdAt,
     };
   },
@@ -176,6 +191,8 @@ export const qrRequestService = {
       city: r.city,
       destinationUrl: r.destinationUrl,
       qrConfig: r.qrConfig,
+      stickerImageUrl: r.stickerImageUrl,
+      stickerImageCreatedAt: r.stickerImageCreatedAt,
       quotedPrice: r.quotedPrice ? Number(r.quotedPrice) : null,
       status: r.status,
       createdAt: r.createdAt,

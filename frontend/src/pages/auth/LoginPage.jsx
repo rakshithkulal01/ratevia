@@ -9,7 +9,7 @@ import { GoogleIcon } from '../../components/ui/GoogleIcon';
 import { Sparkles, AlertCircle, ArrowRight, Loader2 } from 'lucide-react';
 
 export const LoginPage = () => {
-  const { signInWithGoogle, signInWithEmail } = useAuth();
+  const { session, user, signInWithGoogle, signInWithEmail } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -20,6 +20,17 @@ export const LoginPage = () => {
   const [error, setError] = useState(null);
 
   const from = location.state?.from?.pathname || '/dashboard';
+
+  // If already authenticated, redirect to appropriate home area
+  React.useEffect(() => {
+    if (session && user) {
+      if (user.role === 'ADMIN') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate(from === '/admin' ? '/dashboard' : from, { replace: true });
+      }
+    }
+  }, [session, user, navigate, from]);
 
   const validate = () => {
     if (!email.trim()) {
@@ -59,8 +70,16 @@ export const LoginPage = () => {
 
     try {
       setLoading(true);
-      await signInWithEmail(email.trim(), password);
-      navigate(from, { replace: true });
+      const res = await signInWithEmail(email.trim(), password);
+      const userRole = res?.dbUser?.role || res?.user?.role;
+
+      if (userRole === 'ADMIN') {
+        const target = from && from.startsWith('/admin') ? from : '/admin';
+        navigate(target, { replace: true });
+      } else {
+        const target = from === '/admin' ? '/dashboard' : from;
+        navigate(target, { replace: true });
+      }
     } catch (err) {
       console.error('Login error:', err);
       if (err.message?.toLowerCase().includes('invalid login credentials')) {

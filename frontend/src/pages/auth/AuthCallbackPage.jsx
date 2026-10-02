@@ -49,7 +49,14 @@ export const AuthCallbackPage = () => {
 
             if (syncRes.ok) {
               const { user: dbUser } = await syncRes.json();
-              // Check if user already has a business
+
+              // ADMIN accounts go straight to /admin
+              if (dbUser?.role === 'ADMIN') {
+                navigate('/admin', { replace: true });
+                return;
+              }
+
+              // Check if business user already has a business
               const meRes = await fetch(`${API_URL}/api/auth/me`, {
                 headers: {
                   Authorization: `Bearer ${currentSession.access_token}`,
@@ -57,6 +64,10 @@ export const AuthCallbackPage = () => {
               });
               if (meRes.ok) {
                 const meData = await meRes.json();
+                if (meData?.user?.role === 'ADMIN') {
+                  navigate('/admin', { replace: true });
+                  return;
+                }
                 if (meData?.user?.businesses?.length > 0) {
                   navigate('/dashboard', { replace: true });
                   return;

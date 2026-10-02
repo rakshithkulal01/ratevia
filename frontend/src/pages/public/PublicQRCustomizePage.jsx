@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
 import { BrandedQRCard } from '../../components/dashboard/BrandedQRCard';
+import { RateviaStickerPreview } from '../../components/dashboard/RateviaStickerPreview';
 import { QRCustomizationPanel } from '../../components/dashboard/QRCustomizationPanel';
 import { publicService } from '../../services/publicService';
 import { usePlatformPrice } from '../../hooks/usePlatformPrice';
@@ -13,6 +14,7 @@ import {
   getQRBrandConfig,
   getCategoryDefaultAccent,
   DEFAULT_QR_MESSAGE,
+  renderRateviaStickerDataUrl,
 } from '../../utils/qrBrandUtils';
 import {
   Sparkles,
@@ -37,6 +39,7 @@ export const PublicQRCustomizePage = () => {
 
   // Form Fields
   const [businessName, setBusinessName] = useState('');
+  const [tagline, setTagline] = useState('Your experience matters 💙');
   const [category, setCategory] = useState('CAFE');
   const [contactName, setContactName] = useState('');
   const [phone, setPhone] = useState('');
@@ -45,6 +48,8 @@ export const PublicQRCustomizePage = () => {
   const [destinationUrl, setDestinationUrl] = useState('');
 
   // QR Customization
+  const [badgeType, setBadgeType] = useState('sparkle');
+  const [previewMode, setPreviewMode] = useState('sticker'); // 'sticker' | 'stand'
   const [selectedAccent, setSelectedAccent] = useState('warm');
   const [selectedStyle, setSelectedStyle] = useState('classic');
   const [selectedMessage, setSelectedMessage] = useState(DEFAULT_QR_MESSAGE);
@@ -53,16 +58,21 @@ export const PublicQRCustomizePage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [validationError, setValidationError] = useState(null);
   const [submittedData, setSubmittedData] = useState(null);
+  const stickerCanvasRef = useRef(null);
 
   const categoryOptions = useMemo(() => getCategoryOptions(), []);
   const categoryConfig = useMemo(() => getCategoryConfig(category), [category]);
 
-  // Handle category change and auto-set suggested accent
+  // Handle category change and auto-set suggested accent & tagline
   const handleCategoryChange = (e) => {
     const newCat = e.target.value;
     setCategory(newCat);
     const suggestedAccent = getCategoryDefaultAccent(newCat);
     setSelectedAccent(suggestedAccent);
+    const catConfig = getCategoryConfig(newCat);
+    if (catConfig?.brandTheme?.tagline) {
+      setTagline(catConfig.brandTheme.tagline);
+    }
   };
 
   // Build live preview brand configuration
@@ -128,6 +138,23 @@ export const PublicQRCustomizePage = () => {
     try {
       setSubmitting(true);
 
+      // Render the complete customized Ratevia sticker PNG
+      let stickerImageDataUrl = null;
+      try {
+        const qrCanvas = stickerCanvasRef.current?.querySelector('canvas');
+        const stickerResult = await renderRateviaStickerDataUrl({
+          businessName: businessName.trim(),
+          tagline: tagline.trim(),
+          customerUrl: livePreviewUrl,
+          config: brandConfig,
+          qrCanvas,
+          badgeType,
+        });
+        stickerImageDataUrl = stickerResult?.dataUrl || null;
+      } catch (renderErr) {
+        console.warn('[PublicQRCustomize] Could not pre-render sticker image:', renderErr);
+      }
+
       const payload = {
         businessName: businessName.trim(),
         category,
@@ -136,11 +163,14 @@ export const PublicQRCustomizePage = () => {
         email: email.trim(),
         city: city.trim() || null,
         destinationUrl: destinationUrl.trim(),
+        stickerImage: stickerImageDataUrl,
         qrConfig: {
           selectedAccent,
           selectedStyle,
           selectedMessage,
           initials: brandConfig.initials,
+          tagline: tagline.trim() || undefined,
+          badgeType,
         },
       };
 
@@ -207,7 +237,7 @@ export const PublicQRCustomizePage = () => {
             <ShieldCheck className="h-5 w-5 text-accent shrink-0 mt-0.5" />
             <div>
               <span className="font-semibold block">What happens next?</span>
-              Ratevia does not automatically activate QR codes for unverified websites. An admin will review your design, contact you via WhatsApp/Phone, and provide your print stand folios upon confirmation.
+              Ratevia does not automatically activate QR codes for unverified websites. An admin will review your design, contact you via phone or email, and provide your print stand folios upon confirmation.
             </div>
           </div>
 
@@ -217,17 +247,11 @@ export const PublicQRCustomizePage = () => {
                 Back to Homepage
               </Button>
             </Link>
-            <a
-              href={`https://wa.me/919988776655?text=${encodeURIComponent(
-                `Hi Ratevia team, I just submitted a branded QR setup for ${submittedData.businessName} (Ref: ${submittedData.referenceId}).`
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <Link to="/contact">
               <Button variant="outline" size="md" className="rounded-md">
-                Contact on WhatsApp
+                Contact Support
               </Button>
-            </a>
+            </Link>
           </div>
         </Card>
       </div>
@@ -288,6 +312,19 @@ export const PublicQRCustomizePage = () => {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">
+                  Business Tagline (Optional)
+                </label>
+                <Input
+                  type="text"
+                  placeholder="e.g., Your experience matters 💙 or Fresh coffee. Great moments."
+                  value={tagline}
+                  onChange={(e) => setTagline(e.target.value)}
+                  maxLength={48}
+                />
+              </div>
+
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1">
@@ -335,7 +372,7 @@ export const PublicQRCustomizePage = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-foreground mb-1">
-                    Phone / WhatsApp <span className="text-red-500">*</span>
+                    Phone Number <span className="text-red-500">*</span>
                   </label>
                   <Input
                     type="tel"
@@ -390,6 +427,12 @@ export const PublicQRCustomizePage = () => {
 
           {/* Step 3: QR Customization Panel */}
           <QRCustomizationPanel
+            businessName={businessName}
+            onBusinessNameChange={setBusinessName}
+            tagline={tagline}
+            onTaglineChange={setTagline}
+            badgeType={badgeType}
+            onBadgeTypeChange={setBadgeType}
             selectedAccent={selectedAccent}
             onSelectAccent={setSelectedAccent}
             selectedStyle={selectedStyle}
@@ -448,35 +491,71 @@ export const PublicQRCustomizePage = () => {
           </Card>
         </div>
 
-        {/* RIGHT COLUMN: Sticky Live Preview Stand */}
+        {/* RIGHT COLUMN: Sticky Live Preview Stand & Sticker */}
         <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-4 flex flex-col items-center">
-          <Card className="w-full p-6 sm:p-7 border-border shadow-lg flex flex-col items-center relative overflow-hidden bg-white/95">
+          <Card className="w-full p-5 sm:p-6 border-border shadow-lg flex flex-col items-center relative overflow-hidden bg-white/95">
             {/* Ambient Accent Glow */}
             <div
               className="absolute -top-16 -right-16 w-36 h-36 rounded-full blur-3xl pointer-events-none opacity-20"
               style={{ backgroundColor: brandConfig.accent.hex }}
             />
 
+            {/* Live Preview Switcher Tabs */}
             <div className="w-full flex items-center justify-between pb-3 border-b border-border mb-4">
-              <span className="text-xs font-mono font-semibold uppercase text-muted-foreground tracking-wider flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-accent" />
-                Live Stand Preview
-              </span>
-              <Badge variant="outline" className="text-[10px] font-mono">
-                {brandConfig.style.label}
-              </Badge>
+              <div className="flex p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/80 text-xs w-full">
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode('sticker')}
+                  className={`flex-1 py-1.5 px-2.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                    previewMode === 'sticker'
+                      ? 'bg-white text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-accent" />
+                  <span>Ratevia Sticker</span>
+                  <Badge variant="outline" className="text-[9px] px-1 py-0 bg-accent/10 text-accent border-accent/20">
+                    Live
+                  </Badge>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode('stand')}
+                  className={`flex-1 py-1.5 px-2.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                    previewMode === 'stand'
+                      ? 'bg-white text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <span>Desk Stand Card</span>
+                </button>
+              </div>
             </div>
 
-            {/* Branded Card Component */}
-            <BrandedQRCard
-              business={{
-                name: businessName || 'Your Business',
-                businessType: category,
-              }}
-              customerUrl={livePreviewUrl}
-              config={brandConfig}
-              size={210}
-            />
+            {/* Live Component: Ratevia Sticker or Branded Stand Card */}
+            <div className="w-full flex justify-center">
+              <div className={`w-full flex justify-center ${previewMode === 'sticker' ? '' : 'hidden'}`}>
+                <RateviaStickerPreview
+                  businessName={businessName}
+                  tagline={tagline}
+                  customerUrl={livePreviewUrl}
+                  config={brandConfig}
+                  badgeType={badgeType}
+                  qrCanvasRef={stickerCanvasRef}
+                />
+              </div>
+              <div className={`w-full flex justify-center ${previewMode === 'stand' ? '' : 'hidden'}`}>
+                <BrandedQRCard
+                  business={{
+                    name: businessName || 'Your Business',
+                    businessType: category,
+                  }}
+                  customerUrl={livePreviewUrl}
+                  config={brandConfig}
+                  size={210}
+                />
+              </div>
+            </div>
 
             {/* Scannability Note */}
             <div className="mt-4 flex items-center justify-center gap-2 text-[11px] text-muted-foreground font-mono">
@@ -485,7 +564,7 @@ export const PublicQRCustomizePage = () => {
             </div>
 
             <p className="text-[11px] text-center text-muted-foreground mt-2 leading-relaxed">
-              Scan with any mobile camera to test destination routing.
+              Scan with any mobile camera to test destination routing in real time.
             </p>
           </Card>
         </div>

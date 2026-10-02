@@ -223,6 +223,21 @@ export function generateCenterBadgeSvgUri(initials, accentHex = '#0052FF', radiu
 }
 
 /**
+ * Generates an SVG Data URI for the 4-point Sparkle Icon.
+ * Exactly matches the aesthetic of the provided Ratevia sticker design.
+ */
+export function generateCenterSparkleSvgUri(accentHex = '#0D92F4') {
+  const svg = [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">`,
+    `  <rect x="0" y="0" width="100" height="100" rx="20" fill="#FFFFFF" />`,
+    `  <path d="M50 8 C50 32, 68 50, 92 50 C68 50, 50 68, 50 92 C50 68, 32 50, 8 50 C32 50, 50 32, 50 8 Z" fill="${accentHex}" />`,
+    `</svg>`,
+  ].join('\n');
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+/**
  * Authoritative Customer QR URL Builder
  * Preserves the contract: /r/:businessSlug
  */
@@ -501,3 +516,158 @@ export function exportBrandedQRSVG({ business, config, qrSvgElement }) {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+/**
+ * High-Resolution Ratevia Sticker Canvas Renderer (1364 x 2048 PNG)
+ * Renders the clean fixed sticker template with real-time customized business name,
+ * dynamic tagline, and current QR code into a 300DPI canvas.
+ */
+export function renderRateviaStickerCanvas({
+  businessName,
+  tagline,
+  customerUrl,
+  config,
+  qrCanvas,
+  badgeType = 'sparkle',
+}) {
+  return new Promise((resolve, reject) => {
+    try {
+      const canvas = document.createElement('canvas');
+      const width = 1364; // 2x of 682
+      const height = 2048; // 2x of 1024
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Could not initialize 2d canvas context');
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+
+      img.onload = () => {
+        try {
+          // 1. Draw clean fixed template background
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // 2. Draw Business Name (centered horizontally, between the fixed ✦ stars)
+          const rawName = (businessName || 'YOUR BUSINESS').toUpperCase();
+          const displayName = rawName.length > 32 ? rawName.slice(0, 30) + '...' : rawName;
+          ctx.fillStyle = '#062464';
+
+          const fontSize =
+            displayName.length <= 10
+              ? 76
+              : displayName.length <= 16
+              ? 64
+              : displayName.length <= 24
+              ? 50
+              : 40;
+          ctx.font = `bold ${fontSize}px 'Calistoga', Georgia, serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(displayName, width / 2, 276);
+
+          // 3. Draw Business Tagline
+          if (tagline && tagline.trim()) {
+            ctx.fillStyle = '#334155';
+            ctx.font = `500 ${tagline.length > 28 ? 32 : 36}px 'Inter', system-ui, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(tagline.trim(), width / 2, 388);
+          }
+
+          // 4. Draw QR Code inside the blue-bordered frame
+          const boxX = 428;
+          const boxY = 476;
+          const boxW = 508;
+          const boxH = 472;
+          const qrSize = 436;
+          const qrX = boxX + (boxW - qrSize) / 2;
+          const qrY = boxY + (boxH - qrSize) / 2;
+
+          if (qrCanvas) {
+            ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+          }
+
+          // 5. Draw center badge
+          const badgeSize = Math.round(qrSize * 0.22);
+          const badgeX = qrX + (qrSize - badgeSize) / 2;
+          const badgeY = qrY + (qrSize - badgeSize) / 2;
+          const accentHex = config?.accent?.hex || '#0052FF';
+
+          if (badgeType === 'initials') {
+            ctx.fillStyle = accentHex;
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 6;
+            if (ctx.roundRect) {
+              ctx.beginPath();
+              ctx.roundRect(badgeX, badgeY, badgeSize, badgeSize, 20);
+              ctx.fill();
+              ctx.stroke();
+            }
+            ctx.fillStyle = '#FFFFFF';
+            const initials = (config?.initials || 'RV').slice(0, 3).toUpperCase();
+            ctx.font = `bold ${initials.length >= 3 ? 34 : 44}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(initials, badgeX + badgeSize / 2, badgeY + badgeSize / 2);
+          } else {
+            // Sparkle badge matching original sticker design
+            ctx.fillStyle = '#FFFFFF';
+            if (ctx.roundRect) {
+              ctx.beginPath();
+              ctx.roundRect(badgeX, badgeY, badgeSize, badgeSize, 20);
+              ctx.fill();
+            }
+            const cx = badgeX + badgeSize / 2;
+            const cy = badgeY + badgeSize / 2;
+            const r = badgeSize * 0.42;
+            ctx.fillStyle = accentHex;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - r);
+            ctx.bezierCurveTo(cx, cy - r * 0.35, cx + r * 0.35, cy, cx + r, cy);
+            ctx.bezierCurveTo(cx + r * 0.35, cy, cx, cy + r * 0.35, cx, cy + r);
+            ctx.bezierCurveTo(cx, cy + r * 0.35, cx - r * 0.35, cy, cx - r, cy);
+            ctx.bezierCurveTo(cx - r * 0.35, cy, cx, cy - r * 0.35, cx, cy - r);
+            ctx.closePath();
+            ctx.fill();
+          }
+
+          const dataUrl = canvas.toDataURL('image/png');
+          canvas.toBlob((blob) => {
+            resolve({ canvas, dataUrl, blob });
+          }, 'image/png');
+        } catch (innerErr) {
+          reject(innerErr);
+        }
+      };
+
+      img.onerror = () => reject(new Error('Failed to load sticker template background image'));
+      img.src = '/ratevia_sticker_clean.png';
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+/**
+ * Returns rendered Base64 PNG and Blob for the complete customized Ratevia sticker.
+ */
+export async function renderRateviaStickerDataUrl(params) {
+  const { dataUrl, blob, canvas } = await renderRateviaStickerCanvas(params);
+  return { dataUrl, blob, canvas };
+}
+
+/**
+ * High-Resolution Ratevia Sticker Exporter (1364 x 2048 PNG)
+ * Renders the clean fixed sticker template and initiates browser download.
+ */
+export async function exportRateviaStickerPNG(params) {
+  const { dataUrl } = await renderRateviaStickerCanvas(params);
+  const link = document.createElement('a');
+  link.download = `${params?.slug || 'ratevia'}-sticker.png`;
+  link.href = dataUrl;
+  link.click();
+  return true;
+}
+
+

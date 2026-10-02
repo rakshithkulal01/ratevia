@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import QRCode from 'qrcode';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { adminMiddleware, requirePermission } from '../middleware/adminMiddleware.js';
 import adminService from '../services/adminService.js';
@@ -213,18 +216,51 @@ router.post('/qr-requests/:id/reject', requirePermission('MANAGE_QR_REQUESTS'), 
 
 /**
  * GET /api/admin/qr-requests/:id/download
- * Generate and download the customized QR code in requested format (SVG or PNG).
+ * Download the complete customized Ratevia sticker PNG or fallback QR format.
  */
 router.get('/qr-requests/:id/download', requirePermission('MANAGE_QR'), async (req, res, next) => {
   try {
     const { id } = req.params;
-    const format = req.query.format === 'png' ? 'png' : 'svg';
+    const format = req.query.format || (req.query.sticker ? 'sticker' : 'sticker');
     const request = await qrRequestService.getAdminQRRequestById(id);
 
     const safeSlug = (request.businessName || 'business')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '') || 'ratevia';
+
+    // 1. If sticker is requested or default and stickerImageUrl exists, deliver the complete sticker PNG
+    if ((format === 'sticker' || !req.query.format) && request.stickerImageUrl) {
+      const stickerUrl = request.stickerImageUrl;
+
+      if (stickerUrl.startsWith('data:image/')) {
+        const base64Data = stickerUrl.replace(/^data:image\/\w+;base64,/, '');
+        const buffer = Buffer.from(base64Data, 'base64');
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Content-Disposition', `attachment; filename="${safeSlug}-ratevia-sticker.png"`);
+        return res.send(buffer);
+      } else if (stickerUrl.startsWith('/uploads/')) {
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+        const localPath = path.join(__dirname, '../../uploads', stickerUrl.replace(/^\/uploads\//, ''));
+        if (fs.existsSync(localPath)) {
+          return res.download(localPath, `${safeSlug}-ratevia-sticker.png`);
+        }
+      } else if (stickerUrl.startsWith('http://') || stickerUrl.startsWith('https://')) {
+        try {
+          const fetched = await fetch(stickerUrl);
+          if (fetched.ok) {
+            const arrayBuffer = await fetched.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            res.setHeader('Content-Type', 'image/png');
+            res.setHeader('Content-Disposition', `attachment; filename="${safeSlug}-ratevia-sticker.png"`);
+            return res.send(buffer);
+          }
+        } catch (fetchErr) {
+          console.warn('[AdminDownload] Remote fetch failed, falling back to QR generation:', fetchErr.message);
+        }
+      }
+    }
 
     const urlToEncode = request.destinationUrl || 'https://ratevia.in';
 

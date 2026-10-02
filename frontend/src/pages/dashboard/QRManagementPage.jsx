@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { BrandedQRCard } from '../../components/dashboard/BrandedQRCard';
+import { RateviaStickerPreview } from '../../components/dashboard/RateviaStickerPreview';
 import { QRCustomizationPanel } from '../../components/dashboard/QRCustomizationPanel';
 import { QRBusinessHeader } from '../../components/dashboard/QRBusinessHeader';
 import { QRDownloadActions } from '../../components/dashboard/QRDownloadActions';
@@ -42,6 +43,10 @@ export const QRManagementPage = () => {
   const [statusMessage, setStatusMessage] = useState(null);
 
   // Curated Branding Customization State (Instant Live Preview)
+  const [customBusinessName, setCustomBusinessName] = useState('');
+  const [customTagline, setCustomTagline] = useState('Your experience matters 💙');
+  const [badgeType, setBadgeType] = useState('sparkle');
+  const [previewMode, setPreviewMode] = useState('sticker'); // 'sticker' | 'stand'
   const [selectedAccent, setSelectedAccent] = useState('ratevia-blue');
   const [selectedStyle, setSelectedStyle] = useState('classic');
   const [selectedMessage, setSelectedMessage] = useState(DEFAULT_QR_MESSAGE);
@@ -71,13 +76,18 @@ export const QRManagementPage = () => {
 
       const data = await res.json();
       setBusiness(data.business);
+      setCustomBusinessName(data.business?.name || '');
       setQrCode(data.qrCode);
       setCustomerUrl(data.customerUrl);
 
-      // Initialize default category accent
+      // Initialize default category accent and suggested tagline
       if (data.business?.businessType) {
         const defaultAccent = getCategoryDefaultAccent(data.business.businessType);
         setSelectedAccent(defaultAccent);
+        const catConfig = getCategoryConfig(data.business.businessType);
+        if (catConfig?.brandTheme?.tagline) {
+          setCustomTagline(catConfig.brandTheme.tagline);
+        }
       }
     } catch (err) {
       console.error('[QRManagement] Fetch error:', err);
@@ -190,7 +200,10 @@ export const QRManagementPage = () => {
   const isActive = qrCode?.active ?? true;
   const categoryConfig = getCategoryConfig(business?.businessType);
   const brandConfig = getQRBrandConfig({
-    business,
+    business: {
+      ...business,
+      name: customBusinessName || business?.name,
+    },
     categoryKey: business?.businessType,
     selectedAccent,
     selectedStyle,
@@ -199,22 +212,22 @@ export const QRManagementPage = () => {
 
   return (
     <DashboardLayout activeTab="qr code">
-      {/* Print-specific stylesheet isolating the card for physical stand printing */}
+      {/* Print-specific stylesheet isolating the active preview for physical printing */}
       <style>{`
         @media print {
           body * {
             visibility: hidden !important;
           }
-          #print-branded-qr-card, #print-branded-qr-card * {
+          #print-preview-container, #print-preview-container * {
             visibility: visible !important;
           }
-          #print-branded-qr-card {
+          #print-preview-container {
             position: fixed !important;
             left: 50% !important;
             top: 50% !important;
-            transform: translate(-50%, -50%) scale(1.15) !important;
+            transform: translate(-50%, -50%) !important;
             box-shadow: none !important;
-            border: 2px solid #CBD5E1 !important;
+            border: none !important;
           }
         }
       `}</style>
@@ -238,25 +251,69 @@ export const QRManagementPage = () => {
         )}
 
         <div className="grid gap-8 lg:grid-cols-12 items-start">
-          {/* LEFT COLUMN: Section 2 — Live Branded QR Stand Preview & Downloads */}
+          {/* LEFT COLUMN: Section 2 — Real-Time Ratevia Sticker Preview & Downloads */}
           <div className="lg:col-span-5 flex flex-col items-center space-y-4">
-            <Card className="w-full p-6 sm:p-7 border-border shadow-md flex flex-col items-center relative overflow-hidden bg-white/95">
-              {/* Subtle Ambient Glow */}
+            <Card className="w-full p-5 sm:p-6 border-border shadow-md flex flex-col items-center relative overflow-hidden bg-white/95">
+              {/* Ambient Accent Glow */}
               <div
                 className="absolute -top-16 -right-16 w-36 h-36 rounded-full blur-3xl pointer-events-none opacity-20"
                 style={{ backgroundColor: brandConfig.accent.hex }}
               />
 
-              {/* Physical Stand Card Preview */}
-              <div id="print-branded-qr-card" className="w-full flex justify-center">
-                <BrandedQRCard
-                  business={business}
-                  customerUrl={customerUrl}
-                  config={brandConfig}
-                  isPaused={!isActive}
-                  qrCanvasRef={qrCanvasRef}
-                  size={210}
-                />
+              {/* Preview Format Switcher Tabs */}
+              <div className="w-full flex items-center justify-between mb-4 pb-3 border-b border-border">
+                <div className="flex p-0.5 rounded-lg bg-slate-100/90 border border-slate-200/80 text-xs w-full">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewMode('sticker')}
+                    className={`flex-1 py-1.5 px-2.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                      previewMode === 'sticker'
+                        ? 'bg-white text-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <Sparkles className="h-3.5 w-3.5 text-accent" />
+                    <span>Ratevia Sticker</span>
+                    <Badge variant="outline" className="text-[9px] px-1 py-0 bg-accent/10 text-accent border-accent/20">
+                      Live
+                    </Badge>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewMode('stand')}
+                    className={`flex-1 py-1.5 px-2.5 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                      previewMode === 'stand'
+                        ? 'bg-white text-foreground shadow-xs'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    <span>Desk Stand Card</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Physical Preview Component (Sticker or Stand Card) */}
+              <div id="print-preview-container" className="w-full flex justify-center">
+                {previewMode === 'sticker' ? (
+                  <RateviaStickerPreview
+                    businessName={customBusinessName || business?.name}
+                    tagline={customTagline}
+                    customerUrl={customerUrl}
+                    config={brandConfig}
+                    isPaused={!isActive}
+                    badgeType={badgeType}
+                    qrCanvasRef={qrCanvasRef}
+                  />
+                ) : (
+                  <BrandedQRCard
+                    business={{ ...business, name: customBusinessName || business?.name }}
+                    customerUrl={customerUrl}
+                    config={brandConfig}
+                    isPaused={!isActive}
+                    qrCanvasRef={qrCanvasRef}
+                    size={210}
+                  />
+                )}
               </div>
 
               {/* Quality & Scannability Badge */}
@@ -265,12 +322,16 @@ export const QRManagementPage = () => {
                 <span>Error Correction Level H • 100% Scannable</span>
               </div>
 
-              {/* Download & Print Actions */}
+              {/* Download & Print Actions (Sticker PNG, Stand SVG, Print, URL) */}
               <QRDownloadActions
                 business={business}
                 config={brandConfig}
                 customerUrl={customerUrl}
                 qrCanvasRef={qrCanvasRef}
+                customBusinessName={customBusinessName}
+                tagline={customTagline}
+                badgeType={badgeType}
+                activePreviewTab={previewMode}
                 onCopyLink={handleCopyLink}
                 copied={copied}
               />
@@ -281,6 +342,12 @@ export const QRManagementPage = () => {
           <div className="lg:col-span-7 space-y-6">
             {/* Customization Panel */}
             <QRCustomizationPanel
+              businessName={customBusinessName}
+              onBusinessNameChange={setCustomBusinessName}
+              tagline={customTagline}
+              onTaglineChange={setCustomTagline}
+              badgeType={badgeType}
+              onBadgeTypeChange={setBadgeType}
               selectedAccent={selectedAccent}
               onSelectAccent={setSelectedAccent}
               selectedStyle={selectedStyle}
