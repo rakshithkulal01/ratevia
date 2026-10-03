@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
+import SEOHead from '../seo/SEOHead';
 import { useAuth } from '../../context/AuthContext';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
@@ -20,9 +21,10 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-export const DashboardLayout = ({ children, activeTab }) => {
+export const DashboardLayout = ({ children, activeTab, title }) => {
   const { session, user } = useAuth();
   const navigate = useNavigate();
+
 
   const [businessData, setBusinessData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,10 +80,11 @@ export const DashboardLayout = ({ children, activeTab }) => {
     { label: 'Settings', path: '/dashboard/business', icon: Settings },
   ];
 
-  const isSuspended = businessData && !businessData.isActive;
+  const pageTitle = title || (activeTab ? `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} — Dashboard` : 'Business Dashboard');
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-16">
+      <SEOHead title={pageTitle} noindex={true} />
       {/* Account Status Banner */}
       {businessData && (
         <div className="border-b border-border">

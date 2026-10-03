@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import SEOHead from '../components/seo/SEOHead';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/Card';
@@ -33,6 +34,7 @@ export const DesignSystemShowcase = () => {
 
   return (
     <div className="space-y-24 py-12 md:py-20">
+      <SEOHead title="Design System Showcase" noindex={true} />
       {/* 1. Hero / Typography Section */}
       <section className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-start space-y-6">

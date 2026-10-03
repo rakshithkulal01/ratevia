@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import SEOHead from '../../components/seo/SEOHead';
 import { useAuth } from '../../context/AuthContext';
+
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent } from '../../components/ui/Card';
@@ -124,6 +126,7 @@ export const SignupPage = () => {
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <SEOHead title="Sign Up" noindex={true} />
       <div className="w-full max-w-md space-y-8">
         {/* Header */}
         <div className="text-center space-y-3">

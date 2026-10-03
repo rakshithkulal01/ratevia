@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js';
 import { generateUniqueBusinessSlug } from '../utils/slug.js';
+import { deleteStickerImage } from '../utils/stickerStorage.js';
 
 export const adminService = {
   /**
@@ -155,6 +156,44 @@ export const adminService = {
     );
 
     return { request: updated, alreadyContacted: false };
+  },
+
+  /**
+   * Delete an individual business lead request record.
+   * Safe cleanup: if sticker image exists in storage, clean it up.
+   */
+  deleteBusinessRequest: async (id, adminUser) => {
+    const request = await prisma.businessRequest.findUnique({
+      where: { id },
+    });
+
+    if (!request) {
+      const err = new Error('Business request not found.');
+      err.status = 404;
+      throw err;
+    }
+
+    // Clean up any stored sticker image safely
+    if (request.stickerImageUrl) {
+      try {
+        await deleteStickerImage(request.id, request.stickerImageUrl);
+      } catch (storageErr) {
+        console.warn(`[DeleteBusinessRequest] Storage cleanup warning for ${id}:`, storageErr.message);
+      }
+    }
+
+    await prisma.businessRequest.delete({
+      where: { id },
+    });
+
+    console.log(
+      `[DeleteBusinessRequest] Business request "${request.businessName}" (${id}) deleted by ${adminUser?.email || 'admin'}`
+    );
+
+    return {
+      success: true,
+      message: `Business request for "${request.businessName}" has been deleted.`,
+    };
   },
 
   /**

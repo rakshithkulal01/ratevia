@@ -68,9 +68,9 @@ export const AdminManagementTable = ({
     if (!confirmTarget) return;
 
     if (confirmActionType === 'deactivate') {
-      onToggleStatus(confirmTarget.id, false);
+      onToggleStatus(confirmTarget, false);
     } else if (confirmActionType === 'delete') {
-      onDeleteAdmin(confirmTarget.id);
+      onDeleteAdmin(confirmTarget);
     }
 
     setConfirmTarget(null);
@@ -280,7 +280,7 @@ export const AdminManagementTable = ({
                                   type="button"
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => onToggleStatus(admin.id, true)}
+                                  onClick={() => onToggleStatus(admin, true)}
                                   disabled={loadingActionId === admin.id}
                                   className="h-7 px-2 text-[11px] text-emerald-700 hover:bg-emerald-50 border-emerald-300"
                                   title="Reactivate account"

@@ -43,11 +43,11 @@ export const RateviaStickerPreview = React.forwardRef(
     // Coordinates relative to 682x1024 container width (cqw)
     const getNameFontSize = (text) => {
       const len = text.length;
-      if (len <= 8) return 'clamp(14px, 5.8cqw, 24px)';
-      if (len <= 14) return 'clamp(13px, 5.0cqw, 20px)';
-      if (len <= 20) return 'clamp(11px, 4.2cqw, 17px)';
-      if (len <= 28) return 'clamp(10px, 3.5cqw, 14px)';
-      return 'clamp(9px, 3.0cqw, 12px)';
+      if (len <= 10) return 'clamp(14px, 5.6cqw, 24px)';
+      if (len <= 16) return 'clamp(12px, 4.8cqw, 20px)';
+      if (len <= 24) return 'clamp(11px, 4.0cqw, 17px)';
+      if (len <= 34) return 'clamp(10px, 3.4cqw, 14px)';
+      return 'clamp(9px, 2.9cqw, 12px)';
     };
 
     return (
@@ -65,6 +65,8 @@ export const RateviaStickerPreview = React.forwardRef(
         <img
           src="/ratevia_sticker_clean.png"
           alt="Ratevia Branded Sticker Template"
+          width="682"
+          height="1024"
           className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none block"
           loading="eager"
           decoding="async"
@@ -76,12 +78,12 @@ export const RateviaStickerPreview = React.forwardRef(
           style={{
             top: '13.5%',
             width: '61%',
-            maxHeight: '7%',
+            maxHeight: '9%',
           }}
         >
           {hasName ? (
             <h2
-              className="font-display font-bold uppercase tracking-wider text-[#062464] leading-tight line-clamp-2 drop-shadow-xs"
+              className="font-display font-bold uppercase tracking-wider text-[#062464] leading-[1.15] line-clamp-2 drop-shadow-xs"
               style={{
                 fontSize: getNameFontSize(displayName),
                 letterSpacing: displayName.length > 20 ? '0.02em' : '0.06em',

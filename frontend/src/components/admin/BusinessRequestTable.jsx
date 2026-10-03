@@ -10,6 +10,7 @@ import {
   Plus,
   Loader2,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 import { getCategoryConfig } from '../../config/businessCategories';
 
@@ -21,7 +22,9 @@ export const BusinessRequestTable = ({
   onSelectRequest,
   onLogContact,
   onOpenProvision,
+  onDelete,
   loggingContactId,
+  deletingId,
   copiedPhoneId,
   onCopyPhone,
 }) => {
@@ -204,6 +207,24 @@ export const BusinessRequestTable = ({
                     <span>View Business</span>
                     <ExternalLink className="h-3 w-3" />
                   </a>
+                )}
+
+                {onDelete && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={deletingId === req.id}
+                    onClick={(e) => onDelete(req, e)}
+                    className="rounded-md text-xs h-8 text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
+                    title="Delete Request"
+                  >
+                    {deletingId === req.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                    ) : (
+                      <Trash2 className="mr-1 h-3.5 w-3.5" />
+                    )}
+                    Delete
+                  </Button>
                 )}
               </div>
             </div>

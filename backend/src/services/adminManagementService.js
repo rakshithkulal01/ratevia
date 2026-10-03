@@ -252,7 +252,7 @@ class AdminManagementService {
       }
     }
 
-    // 2. Safeguard: Never deactivate the final active administrator
+    // 2. Safeguard: Never deactivate the final active administrator or sole manager
     if (isActive === false && targetAdmin.isActive) {
       const activeAdminCount = await prisma.adminUser.count({
         where: { isActive: true },
@@ -262,6 +262,58 @@ class AdminManagementService {
         const error = new Error('Action blocked: At least one active administrator must remain in the system.');
         error.status = 400;
         throw error;
+      }
+
+      // Safeguard: Cannot deactivate the only active administrator with MANAGE_ADMINS
+      const hasManageAdmins = targetAdmin.permissions.some(
+        (p) => (typeof p === 'string' ? p : p.permission) === 'MANAGE_ADMINS'
+      );
+      if (hasManageAdmins) {
+        const otherActiveManagers = await prisma.adminUser.count({
+          where: {
+            id: { not: id },
+            isActive: true,
+            permissions: {
+              some: { permission: 'MANAGE_ADMINS' },
+            },
+          },
+        });
+
+        if (otherActiveManagers < 1) {
+          const error = new Error(
+            'Action blocked: At least one active administrator must retain the MANAGE_ADMINS permission.'
+          );
+          error.status = 400;
+          throw error;
+        }
+      }
+    }
+
+    // Safeguard: Cannot strip MANAGE_ADMINS from the sole active manager
+    const willBeActive = typeof isActive === 'boolean' ? isActive : targetAdmin.isActive;
+    if (willBeActive && permissions && Array.isArray(permissions) && !permissions.includes('MANAGE_ADMINS')) {
+      const currentlyHasManageAdmins = targetAdmin.permissions.some(
+        (p) => (typeof p === 'string' ? p : p.permission) === 'MANAGE_ADMINS'
+      );
+
+      if (currentlyHasManageAdmins) {
+        const otherActiveManagers = await prisma.adminUser.count({
+          where: {
+            id: { not: id },
+            isActive: true,
+            permissions: {
+              some: { permission: 'MANAGE_ADMINS' },
+            },
+          },
+        });
+
+        if (otherActiveManagers < 1) {
+          const error = new Error(
+            'Action blocked: At least one active administrator must retain the MANAGE_ADMINS permission.'
+          );
+          error.status = 400;
+          throw error;
+        }
       }
     }
 
@@ -375,6 +427,33 @@ class AdminManagementService {
     }
 
     // Safeguard 1: Cannot delete if they are active and the last active admin
+    // Safeguard 1: Cannot delete the only active administrator who possesses MANAGE_ADMINS
+    if (targetAdmin.isActive) {
+      const hasManageAdmins = targetAdmin.permissions.some(
+        (p) => (typeof p === 'string' ? p : p.permission) === 'MANAGE_ADMINS'
+      );
+      if (hasManageAdmins) {
+        const otherActiveManagers = await prisma.adminUser.count({
+          where: {
+            id: { not: id },
+            isActive: true,
+            permissions: {
+              some: { permission: 'MANAGE_ADMINS' },
+            },
+          },
+        });
+
+        if (otherActiveManagers < 1) {
+          const error = new Error(
+            'Action blocked: Cannot delete the only active administrator who possesses the MANAGE_ADMINS permission.'
+          );
+          error.status = 400;
+          throw error;
+        }
+      }
+    }
+
+    // Safeguard 2: Prevent deleting the only remaining active administrator
     if (targetAdmin.isActive) {
       const activeAdminCount = await prisma.adminUser.count({
         where: { isActive: true },
@@ -387,7 +466,7 @@ class AdminManagementService {
       }
     }
 
-    // Safeguard 2: Prevent accidental self-deletion if there are 2 or fewer admins without confirmation
+    // Safeguard 3: Prevent accidental self-deletion if there are 2 or fewer admins without confirmation
     if (id === actingAdmin.id) {
       const activeCount = await prisma.adminUser.count({ where: { isActive: true } });
       if (activeCount <= 1) {

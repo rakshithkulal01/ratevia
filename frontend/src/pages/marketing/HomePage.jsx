@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import SEOHead from '../../components/seo/SEOHead';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Card } from '../../components/ui/Card';
@@ -17,10 +18,12 @@ import {
   Copy,
   Sliders,
   ChevronRight,
+  ChevronDown,
   Store,
   Coffee,
   Hotel,
   UtensilsCrossed,
+  HelpCircle,
 } from 'lucide-react';
 import { getCategoryOptions } from '../../config/businessCategories';
 import { usePlatformPrice } from '../../hooks/usePlatformPrice';
@@ -29,6 +32,17 @@ export const HomePage = () => {
   const { formattedPrice } = usePlatformPrice();
   // Interactive Product Preview Step
   const [activeStep, setActiveStep] = useState(0);
+  const [openHomeFaq, setOpenHomeFaq] = useState(null);
+
+  const categoryPageRoutes = {
+    CAFE: '/review-qr-code/cafe',
+    RESTAURANT: '/review-qr-code/restaurant',
+    HOTEL: '/review-qr-code/hotel',
+    SALON: '/review-qr-code/salon',
+    BAKERY: '/review-qr-code/bakery',
+    GYM: '/review-qr-code/gym',
+  };
+
 
   const previewSteps = [
     {
@@ -120,6 +134,13 @@ export const HomePage = () => {
 
   return (
     <div className="space-y-24 pb-20">
+      <SEOHead
+        title="Google Review QR Code for Business — Ratevia"
+        exactTitle={true}
+        description="Create a custom Google Review QR code for your business. Ratevia's branded QR stands help cafés, restaurants, and hotels collect more authentic reviews. One-time payment, no subscription."
+        canonicalUrl="https://ratevia.in/"
+      />
+
       {/* 1. HERO SECTION */}
       <section className="relative pt-12 md:pt-20 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto overflow-hidden">
         {/* Ambient Glow */}
@@ -143,7 +164,7 @@ export const HomePage = () => {
 
           {/* Supporting Copy */}
           <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl font-sans">
-            Make it effortless for satisfied customers to share genuine feedback on Google, while capturing actionable insights to continuously improve your business.
+            Create a custom Google review QR code stand for your venue. Make it effortless for satisfied customers to share genuine feedback on Google, while capturing actionable insights to continuously improve your business.
           </p>
 
           {/* CTA Buttons */}
@@ -338,18 +359,100 @@ export const HomePage = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {getCategoryOptions().map((cat) => {
             const Icon = cat.icon;
+            const targetUrl = categoryPageRoutes[cat.value] || '/review-qr-code';
             return (
-              <Card key={cat.value} className="p-5 text-center space-y-2.5 hover:border-accent/40 transition-colors">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent mx-auto">
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h3 className="font-semibold text-foreground text-sm">{cat.label}</h3>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  {cat.description}
-                </p>
+              <Link
+                key={cat.value}
+                to={targetUrl}
+                className="group block transition-transform hover:-translate-y-1"
+              >
+                <Card className="p-5 text-center space-y-2.5 h-full hover:border-accent/40 transition-colors">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent mx-auto group-hover:bg-accent group-hover:text-white transition-colors">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="font-semibold text-foreground text-sm flex items-center justify-center gap-1">
+                    <span>{cat.label}</span>
+                    <ChevronRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 text-accent transition-opacity" />
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    {cat.description}
+                  </p>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 5b. HOMEPAGE FAQ SECTION */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        <div className="text-center space-y-2">
+          <Badge variant="outline" className="font-mono text-xs uppercase">
+            Quick Answers
+          </Badge>
+          <h2 className="font-display text-3xl text-foreground font-normal">
+            Frequently Asked Questions
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Clear, transparent answers about our QR stands and review collection process.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {[
+            {
+              q: 'How does Ratevia help collect more Google reviews?',
+              a: 'Ratevia provides a custom-branded QR code standee or sticker for your venue. Customers scan it with their camera and can share their rating in seconds. Satisfied patrons select their highlights, choose from AI-suggested review phrasing to beat writer\'s block, and copy it straight into your official Google review box with a single tap.',
+            },
+            {
+              q: 'Is Ratevia compliant with Google Maps review guidelines?',
+              a: 'Yes, 100%. Google strictly forbids review gating (filtering or hiding negative feedback). Ratevia allows every customer—regardless of star rating—direct access to leave an official Google review. We never ask for Google login credentials and never submit reviews automatically.',
+            },
+            {
+              q: 'Are there any recurring monthly subscription fees?',
+              a: `No monthly fees whatsoever. Ratevia operates on a transparent ${formattedPrice} one-time setup fee per venue, which includes your branded printable QR standee assets, full dashboard access, real-time analytics, and unlimited scans.`,
+            },
+          ].map((faq, idx) => {
+            const isOpen = openHomeFaq === idx;
+            return (
+              <Card
+                key={idx}
+                className={`transition-all border ${
+                  isOpen ? 'border-accent shadow-xs' : 'border-border/80'
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => setOpenHomeFaq(isOpen ? null : idx)}
+                  className="w-full p-5 text-left flex items-center justify-between gap-4"
+                >
+                  <span className="font-semibold text-foreground text-sm sm:text-base">
+                    {faq.q}
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${
+                      isOpen ? 'rotate-180 text-accent' : ''
+                    }`}
+                  />
+                </button>
+                {isOpen && (
+                  <div className="px-5 pb-5 text-xs sm:text-sm text-muted-foreground leading-relaxed border-t border-border/40 pt-3">
+                    {faq.a}
+                  </div>
+                )}
               </Card>
             );
           })}
+        </div>
+
+        <div className="text-center pt-2">
+          <Link
+            to="/faq"
+            className="text-xs font-medium text-accent hover:underline inline-flex items-center gap-1"
+          >
+            <span>View all frequently asked questions</span>
+            <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
       </section>
 

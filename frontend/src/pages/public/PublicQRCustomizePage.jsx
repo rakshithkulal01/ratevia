@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import SEOHead from '../../components/seo/SEOHead';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
+
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
@@ -59,6 +61,7 @@ export const PublicQRCustomizePage = () => {
   const [validationError, setValidationError] = useState(null);
   const [submittedData, setSubmittedData] = useState(null);
   const stickerCanvasRef = useRef(null);
+  const isSubmittingRef = useRef(false);
 
   const categoryOptions = useMemo(() => getCategoryOptions(), []);
   const categoryConfig = useMemo(() => getCategoryConfig(category), [category]);
@@ -97,29 +100,40 @@ export const PublicQRCustomizePage = () => {
   // Form Validation & Submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (submitting) return;
-
+    if (isSubmittingRef.current || submitting) return;
+    isSubmittingRef.current = true;
+    setSubmitting(true);
     setValidationError(null);
 
     // 1. Validate fields
     if (!businessName.trim() || businessName.trim().length < 2) {
       setValidationError('Please enter a business name (at least 2 characters).');
+      isSubmittingRef.current = false;
+      setSubmitting(false);
       return;
     }
     if (!contactName.trim() || contactName.trim().length < 2) {
       setValidationError('Please enter a contact person name.');
+      isSubmittingRef.current = false;
+      setSubmitting(false);
       return;
     }
     if (!phone.trim() || phone.replace(/\D/g, '').length < 10) {
       setValidationError('Please provide a valid 10-digit phone number.');
+      isSubmittingRef.current = false;
+      setSubmitting(false);
       return;
     }
     if (!email.trim() || !email.includes('@')) {
       setValidationError('Please provide a valid email address.');
+      isSubmittingRef.current = false;
+      setSubmitting(false);
       return;
     }
     if (!destinationUrl.trim()) {
       setValidationError('Please provide a Website or Destination URL for your QR code.');
+      isSubmittingRef.current = false;
+      setSubmitting(false);
       return;
     }
 
@@ -128,15 +142,18 @@ export const PublicQRCustomizePage = () => {
       const parsedUrl = new URL(destinationUrl.trim());
       if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
         setValidationError('URL must begin with http:// or https://');
+        isSubmittingRef.current = false;
+        setSubmitting(false);
         return;
       }
     } catch {
       setValidationError('Please enter a valid URL (e.g. https://yourwebsite.com or https://g.page/r/your-id)');
+      isSubmittingRef.current = false;
+      setSubmitting(false);
       return;
     }
 
     try {
-      setSubmitting(true);
 
       // Render the complete customized Ratevia sticker PNG
       let stickerImageDataUrl = null;
@@ -181,6 +198,7 @@ export const PublicQRCustomizePage = () => {
       console.error('[PublicQRCustomize] Submit error:', err);
       setValidationError(err.message || 'Failed to submit QR request. Please try again.');
     } finally {
+      isSubmittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -263,6 +281,13 @@ export const PublicQRCustomizePage = () => {
   // ----------------------------------------------------
   return (
     <div className="py-10 md:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-10">
+      <SEOHead
+        title="Create Your Google Review QR Stand — Ratevia"
+        exactTitle={true}
+        description="Design a custom branded QR stand for your business. Preview in real time, choose your style, and submit for Ratevia verification. One-time setup."
+        canonicalUrl="https://ratevia.in/qr-customize"
+      />
+
       {/* Top Header */}
       <div className="text-center max-w-3xl mx-auto space-y-3">
         <Badge dot pulse variant="accent" className="font-mono text-xs">

@@ -20,11 +20,12 @@ export const Footer = () => {
             © {new Date().getFullYear()} Ratevia. Turn customer experiences into better reviews.
           </p>
 
-          <div className="flex items-center gap-6 text-xs">
-            <Link to="/pricing" className="hover:text-foreground">Pricing</Link>
-            <Link to="/faq" className="hover:text-foreground">FAQ</Link>
-            <Link to="/contact" className="hover:text-foreground">Contact</Link>
-            <Link to="/design-system" className="hover:text-foreground">Design System</Link>
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs">
+            <Link to="/review-qr-code" className="hover:text-foreground transition-colors">Review QR Codes</Link>
+            <Link to="/qr-customize" className="hover:text-foreground transition-colors">QR Studio</Link>
+            <Link to="/pricing" className="hover:text-foreground transition-colors">Pricing</Link>
+            <Link to="/faq" className="hover:text-foreground transition-colors">FAQ</Link>
+            <Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link>
           </div>
         </div>
       </div>

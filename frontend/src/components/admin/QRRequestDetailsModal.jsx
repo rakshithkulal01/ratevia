@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   AlertCircle,
   Loader2,
+  Trash2,
 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -31,6 +32,7 @@ export const QRRequestDetailsModal = ({
   onApprove,
   onReject,
   onProvision,
+  onDelete,
   token,
 }) => {
   const [rejectReason, setRejectReason] = useState('');
@@ -59,7 +61,7 @@ export const QRRequestDetailsModal = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownload = async (format) => {
+  const handleDownload = async (format = 'sticker') => {
     try {
       setDownloading(true);
       const safeSlug = (request.businessName || 'ratevia')
@@ -74,14 +76,21 @@ export const QRRequestDetailsModal = ({
         },
       });
 
-      if (!res.ok) throw new Error('Download failed');
+      if (!res.ok) {
+        if (res.status === 410) {
+          alert('The sticker preview has expired after 25 days and is no longer available for download.');
+          return;
+        }
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.message || 'Download failed');
+      }
 
       const blob = await res.blob();
       const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      const extension = format === 'sticker' ? 'png' : format;
-      const filename = format === 'sticker'
+      const extension = format === 'sticker' || format === 'png' ? 'png' : format;
+      const filename = format === 'sticker' || format === 'png'
         ? `${safeSlug}-ratevia-sticker.png`
         : `ratevia-${safeSlug}-qr.${extension}`;
       link.download = filename;
@@ -89,7 +98,7 @@ export const QRRequestDetailsModal = ({
       URL.revokeObjectURL(downloadUrl);
     } catch (err) {
       console.error('Download error:', err);
-      alert('Failed to download sticker. Please try again.');
+      alert(err.message || 'Failed to download sticker. Please try again.');
     } finally {
       setDownloading(false);
     }
@@ -152,7 +161,7 @@ export const QRRequestDetailsModal = ({
                   <span className="font-semibold text-slate-900">{request.ownerName}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[11px]">Phone / WhatsApp</span>
+                  <span className="text-slate-400 block text-[11px]">Phone Number</span>
                   <div className="flex items-center gap-1.5 font-mono">
                     <a href={`tel:${request.phoneNumber}`} className="text-accent hover:underline font-semibold">
                       {request.phoneNumber}
@@ -271,10 +280,14 @@ export const QRRequestDetailsModal = ({
                       : request.stickerImageUrl
                   }
                   alt={`Ratevia Sticker for ${request.businessName}`}
+                  width="682"
+                  height="1024"
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-auto object-contain block select-none"
                 />
               </div>
-            ) : (Date.now() - new Date(request.createdAt).getTime() > 25 * 24 * 60 * 60 * 1000) ? (
+            ) : (request.isStickerExpired || request.isExpired) ? (
               <div className="w-full max-w-[280px] sm:max-w-[310px] rounded-2xl border border-amber-200/90 bg-amber-50/70 p-6 text-center space-y-3 shadow-xs">
                 <div className="h-10 w-10 rounded-full bg-amber-100 text-amber-600 mx-auto flex items-center justify-center">
                   <Clock className="h-5 w-5" />
@@ -305,7 +318,7 @@ export const QRRequestDetailsModal = ({
 
             {/* Primary Download Button & Actions */}
             <div className="w-full space-y-2 pt-1">
-              {request.stickerImageUrl || (Date.now() - new Date(request.createdAt).getTime() <= 25 * 24 * 60 * 60 * 1000) ? (
+              {request.stickerImageUrl || (!request.isStickerExpired && !request.isExpired) ? (
                 <Button
                   variant="primary"
                   size="md"
@@ -364,9 +377,22 @@ export const QRRequestDetailsModal = ({
 
         {/* Footer Actions */}
         <div className="p-4 border-t border-border bg-slate-50 flex items-center justify-between">
-          <Button variant="outline" size="sm" onClick={onClose} className="rounded-md">
-            Close
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={onClose} className="rounded-md">
+              Close
+            </Button>
+            {onDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onDelete(request)}
+                className="rounded-md text-red-600 hover:bg-red-50 hover:border-red-300"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                Delete
+              </Button>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             {request.status === 'NEW' && (

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import SEOHead from '../../components/seo/SEOHead';
 import { useAuth } from '../../context/AuthContext';
+
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -15,6 +17,7 @@ import {
   Inbox,
   Building2,
   Users,
+  Trash2,
 } from 'lucide-react';
 
 import { adminService } from '../../services/adminService';
@@ -29,6 +32,9 @@ import { AdminPricingCard } from '../../components/admin/AdminPricingCard';
 import { AdminManagementTable } from '../../components/admin/AdminManagementTable';
 import { AddAdminModal } from '../../components/admin/AddAdminModal';
 import { EditAdminModal } from '../../components/admin/EditAdminModal';
+import { ConfirmActionModal } from '../../components/admin/ConfirmActionModal';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
   const { session, user } = useAuth();
@@ -52,6 +58,12 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
   const [selectedAdminForEdit, setSelectedAdminForEdit] = useState(null);
   const [adminActionLoadingId, setAdminActionLoadingId] = useState(null);
 
+  // Delete & Download states
+  const [requestToDelete, setRequestToDelete] = useState(null);
+  const [qrRequestToDelete, setQrRequestToDelete] = useState(null);
+  const [deletingRequestId, setDeletingRequestId] = useState(null);
+  const [downloadingQRId, setDownloadingQRId] = useState(null);
+
   // Action states
   const [updatingId, setUpdatingId] = useState(null);
   const [loggingContactId, setLoggingContactId] = useState(null);
@@ -72,7 +84,7 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
   const [provisioning, setProvisioning] = useState(false);
   const [provisionError, setProvisionError] = useState(null);
 
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN' || (currentAdmin && currentAdmin.isActive);
 
   const loadAdminData = async () => {
     if (!session?.access_token) return;
@@ -235,6 +247,96 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
     }
   };
 
+  // Delete Business Request
+  const handleOpenDeleteRequestConfirm = (req, e) => {
+    if (e) e.stopPropagation();
+    setRequestToDelete(req);
+  };
+
+  const handleConfirmDeleteRequest = async () => {
+    if (!requestToDelete || deletingRequestId) return;
+    try {
+      setDeletingRequestId(requestToDelete.id);
+      await adminService.deleteBusinessRequest(session.access_token, requestToDelete.id);
+      setRequests((prev) => prev.filter((r) => r.id !== requestToDelete.id));
+      if (selectedRequest?.id === requestToDelete.id) {
+        setSelectedRequest(null);
+      }
+      setActionSuccess(`Business request for "${requestToDelete.businessName}" deleted successfully.`);
+      setRequestToDelete(null);
+      setTimeout(() => setActionSuccess(null), 3500);
+      loadAdminData();
+    } catch (err) {
+      alert(err.message || 'Failed to delete business request.');
+    } finally {
+      setDeletingRequestId(null);
+    }
+  };
+
+  // Delete QR Request
+  const handleOpenDeleteQRRequestConfirm = (r, e) => {
+    if (e) e.stopPropagation();
+    setQrRequestToDelete(r);
+  };
+
+  const handleConfirmDeleteQRRequest = async () => {
+    if (!qrRequestToDelete || deletingRequestId) return;
+    try {
+      setDeletingRequestId(qrRequestToDelete.id);
+      await adminService.deleteQRRequest(session.access_token, qrRequestToDelete.id);
+      setQrRequests((prev) => prev.filter((q) => q.id !== qrRequestToDelete.id));
+      if (selectedQRRequest?.id === qrRequestToDelete.id) {
+        setSelectedQRRequest(null);
+      }
+      setActionSuccess(`QR customization request for "${qrRequestToDelete.businessName}" deleted successfully.`);
+      setQrRequestToDelete(null);
+      setTimeout(() => setActionSuccess(null), 3500);
+      loadAdminData();
+    } catch (err) {
+      alert(err.message || 'Failed to delete QR request.');
+    } finally {
+      setDeletingRequestId(null);
+    }
+  };
+
+  // Download Sticker PNG directly from table row
+  const handleDownloadSticker = async (req, e) => {
+    if (e) e.stopPropagation();
+    try {
+      setDownloadingQRId(req.id);
+      const safeSlug = (req.businessName || 'ratevia')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'sticker';
+      const url = `${API_BASE_URL}/api/admin/qr-requests/${req.id}/download?format=sticker`;
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+      if (!res.ok) {
+        if (res.status === 410) {
+          alert('The sticker preview has expired after 25 days and is no longer available for download.');
+          return;
+        }
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.message || 'Download failed');
+      }
+      const blob = await res.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${safeSlug}-ratevia-sticker.png`;
+      link.click();
+      URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.error('Download error:', err);
+      alert(err.message || 'Failed to download sticker. Please try again.');
+    } finally {
+      setDownloadingQRId(null);
+    }
+  };
+
   const handleOpenProvisionFromRequest = (req, e) => {
     if (e) e.stopPropagation();
     setProvisionName(req.businessName || '');
@@ -310,16 +412,22 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
   };
 
   // Admin Management Handlers
-  const handleToggleAdminStatus = async (admin) => {
+  const handleToggleAdminStatus = async (adminOrId, targetActive) => {
+    const adminId = typeof adminOrId === 'object' ? adminOrId?.id : adminOrId;
+    const targetAdmin = admins.find((a) => a.id === adminId) || (typeof adminOrId === 'object' ? adminOrId : null);
+    if (!adminId) return;
+
     try {
-      setAdminActionLoadingId(admin.id);
+      setAdminActionLoadingId(adminId);
       setActionSuccess(null);
-      if (admin.isActive) {
-        await adminService.deactivateAdmin(session.access_token, admin.id);
-        setActionSuccess(`Administrator "${admin.displayName || admin.email}" has been deactivated.`);
+      const shouldActivate = targetActive !== undefined ? targetActive : !targetAdmin?.isActive;
+
+      if (shouldActivate) {
+        await adminService.activateAdmin(session.access_token, adminId);
+        setActionSuccess(`Administrator "${targetAdmin?.displayName || targetAdmin?.email || 'Admin'}" has been activated.`);
       } else {
-        await adminService.activateAdmin(session.access_token, admin.id);
-        setActionSuccess(`Administrator "${admin.displayName || admin.email}" has been activated.`);
+        await adminService.deactivateAdmin(session.access_token, adminId);
+        setActionSuccess(`Administrator "${targetAdmin?.displayName || targetAdmin?.email || 'Admin'}" has been deactivated.`);
       }
       await loadAdminData();
       setTimeout(() => setActionSuccess(null), 3500);
@@ -330,12 +438,16 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
     }
   };
 
-  const handleDeleteAdmin = async (admin) => {
+  const handleDeleteAdmin = async (adminOrId) => {
+    const adminId = typeof adminOrId === 'object' ? adminOrId?.id : adminOrId;
+    const targetAdmin = admins.find((a) => a.id === adminId) || (typeof adminOrId === 'object' ? adminOrId : null);
+    if (!adminId) return;
+
     try {
-      setAdminActionLoadingId(admin.id);
+      setAdminActionLoadingId(adminId);
       setActionSuccess(null);
-      await adminService.deleteAdmin(session.access_token, admin.id);
-      setActionSuccess(`Administrator "${admin.displayName || admin.email}" has been removed.`);
+      await adminService.deleteAdmin(session.access_token, adminId);
+      setActionSuccess(`Administrator "${targetAdmin?.displayName || targetAdmin?.email || 'Admin'}" has been removed.`);
       await loadAdminData();
       setTimeout(() => setActionSuccess(null), 3500);
     } catch (err) {
@@ -428,6 +540,7 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-16">
+      <SEOHead title="Platform Administration" noindex={true} />
       {/* Header */}
       <div className="border-b border-border bg-white shadow-xs">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8">
@@ -613,8 +726,12 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
                 setSelectedQRRequest(qrRequests.find((q) => q.id === id) || null);
               }}
               onProvision={(r) => handleOpenProvisionFromQR(r)}
+              onDownload={handleDownloadSticker}
+              onDelete={handleOpenDeleteQRRequestConfirm}
               contactingId={loggingContactId}
               approvingId={approvingQRId}
+              downloadingId={downloadingQRId}
+              deletingId={deletingRequestId}
               copiedPhoneId={copiedPhoneId}
               onCopyPhone={handleCopyPhone}
             />
@@ -653,10 +770,13 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
 
             <BusinessRequestTable
               requests={filteredRequests}
+              onSelectRequest={(r) => setSelectedRequest(r)}
               onView={(r) => setSelectedRequest(r)}
-              onContact={handleLogContact}
-              onProvision={handleOpenProvisionFromRequest}
+              onLogContact={handleLogContact}
+              onOpenProvision={handleOpenProvisionFromRequest}
+              onDelete={handleOpenDeleteRequestConfirm}
               loggingContactId={loggingContactId}
+              deletingId={deletingRequestId}
               copiedPhoneId={copiedPhoneId}
               onCopyPhone={handleCopyPhone}
             />
@@ -722,6 +842,7 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
           onApprove={handleApproveQR}
           onReject={handleRejectQR}
           onProvision={handleOpenProvisionFromQR}
+          onDelete={handleOpenDeleteQRRequestConfirm}
           token={session?.access_token}
         />
       )}
@@ -733,11 +854,38 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
           onClose={() => setSelectedRequest(null)}
           onContact={handleLogContact}
           onProvision={handleOpenProvisionFromRequest}
+          onDelete={handleOpenDeleteRequestConfirm}
           loggingContactId={loggingContactId}
           copiedPhoneId={copiedPhoneId}
           onCopyPhone={handleCopyPhone}
         />
       )}
+
+      {/* Delete Business Request Confirmation Modal */}
+      <ConfirmActionModal
+        isOpen={Boolean(requestToDelete)}
+        title="Delete Business Inquiry Record"
+        description={`Are you sure you want to permanently delete the inquiry for "${requestToDelete?.businessName}"? This record and associated notes will be removed from your admin history. This action cannot be undone.`}
+        confirmLabel="Delete Request"
+        confirmVariant="destructive"
+        icon={Trash2}
+        loading={deletingRequestId === requestToDelete?.id}
+        onConfirm={handleConfirmDeleteRequest}
+        onCancel={() => setRequestToDelete(null)}
+      />
+
+      {/* Delete QR Customization Request Confirmation Modal */}
+      <ConfirmActionModal
+        isOpen={Boolean(qrRequestToDelete)}
+        title="Delete Custom QR Request"
+        description={`Are you sure you want to permanently delete the custom QR request for "${qrRequestToDelete?.businessName}"? The request record and its stored sticker preview image will be permanently removed. This action cannot be undone.`}
+        confirmLabel="Delete Request"
+        confirmVariant="destructive"
+        icon={Trash2}
+        loading={deletingRequestId === qrRequestToDelete?.id}
+        onConfirm={handleConfirmDeleteQRRequest}
+        onCancel={() => setQrRequestToDelete(null)}
+      />
 
       {/* Provision Business Modal */}
       <ProvisionBusinessModal

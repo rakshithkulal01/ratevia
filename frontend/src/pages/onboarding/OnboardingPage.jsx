@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import SEOHead from '../../components/seo/SEOHead';
 import { useAuth } from '../../context/AuthContext';
+
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -74,6 +76,7 @@ export const OnboardingPage = () => {
 
   return (
     <div className="min-h-[85vh] py-16 px-4 sm:px-6 lg:px-8 max-w-xl mx-auto flex flex-col justify-center">
+      <SEOHead title="Business Onboarding" noindex={true} />
       <Card className="shadow-xl border-border/80 text-center p-6 sm:p-8 space-y-6">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 text-accent">
           <ShieldCheck className="h-8 w-8" />

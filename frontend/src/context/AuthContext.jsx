@@ -15,12 +15,6 @@ export const AuthProvider = ({ children }) => {
   const syncWithBackend = useCallback(async (currentSession) => {
     if (!currentSession?.access_token) return null;
 
-    // Prevent duplicate sync calls for same access token
-    if (lastSyncedToken.current === currentSession.access_token) {
-      return user;
-    }
-    lastSyncedToken.current = currentSession.access_token;
-
     try {
       const response = await fetch(`${API_URL}/api/auth/sync`, {
         method: 'POST',
@@ -33,9 +27,16 @@ export const AuthProvider = ({ children }) => {
       if (response.ok) {
         const data = await response.json();
         // Merge Supabase user with PostgreSQL DB user info (role, id, etc.)
+        // Ensure role strictly uses DB role, never Supabase's internal 'authenticated' string
+        const resolvedRole =
+          data.user?.role && data.user.role !== 'authenticated'
+            ? data.user.role
+            : 'BUSINESS_OWNER';
+
         const mergedUser = {
           ...currentSession.user,
           ...data.user,
+          role: resolvedRole,
         };
         setUser(mergedUser);
         return mergedUser;
@@ -47,7 +48,7 @@ export const AuthProvider = ({ children }) => {
       console.error('[AuthContext] Network error during backend user sync:', err.message);
     }
     return null;
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     if (!supabase) {
@@ -66,8 +67,13 @@ export const AuthProvider = ({ children }) => {
 
       setSession(initialSession);
       if (initialSession?.user) {
-        setUser(initialSession.user);
-        await syncWithBackend(initialSession);
+        const synced = await syncWithBackend(initialSession);
+        if (!synced && mounted) {
+          setUser((prev) => ({
+            ...initialSession.user,
+            role: prev?.role && prev.role !== 'authenticated' ? prev.role : 'BUSINESS_OWNER',
+          }));
+        }
       } else {
         setUser(null);
       }
@@ -82,11 +88,15 @@ export const AuthProvider = ({ children }) => {
         setSession(currentSession);
 
         if (currentSession?.user) {
-          setUser(currentSession.user);
-          await syncWithBackend(currentSession);
+          const synced = await syncWithBackend(currentSession);
+          if (!synced && mounted) {
+            setUser((prev) => ({
+              ...currentSession.user,
+              role: prev?.role && prev.role !== 'authenticated' ? prev.role : 'BUSINESS_OWNER',
+            }));
+          }
         } else {
           setUser(null);
-          lastSyncedToken.current = null;
         }
 
         setLoading(false);

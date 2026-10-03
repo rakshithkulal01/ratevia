@@ -15,20 +15,34 @@ router.post('/sync', authMiddleware, async (req, res, next) => {
     let user = req.dbUser;
 
     if (!user) {
-      // Extract name from Supabase user metadata if available
-      const name = metadata?.name || metadata?.full_name || metadata?.user_name || null;
-
-      // Always assign BUSINESS_OWNER as default role. Never trust role from client.
-      user = await prisma.user.create({
-        data: {
-          supabaseUserId,
-          email,
-          name,
-          role: 'BUSINESS_OWNER',
-        },
+      // Check if user already exists in PostgreSQL by email
+      user = await prisma.user.findFirst({
+        where: { email: { equals: email, mode: 'insensitive' } },
       });
 
-      console.log(`[AuthSync] Created local user for ${email} (${user.id})`);
+      if (user) {
+        if (user.supabaseUserId !== supabaseUserId) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { supabaseUserId },
+          });
+        }
+      } else {
+        // Extract name from Supabase user metadata if available
+        const name = metadata?.name || metadata?.full_name || metadata?.user_name || null;
+
+        // Always assign BUSINESS_OWNER as default role. Never trust role from client.
+        user = await prisma.user.create({
+          data: {
+            supabaseUserId,
+            email,
+            name,
+            role: 'BUSINESS_OWNER',
+          },
+        });
+
+        console.log(`[AuthSync] Created local user for ${email} (${user.id})`);
+      }
     } else {
       // Optionally update name if it changed in metadata and was null in DB
       const name = metadata?.name || metadata?.full_name || null;

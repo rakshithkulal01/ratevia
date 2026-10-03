@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import SEOHead from '../../components/seo/SEOHead';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { businessRequestService } from '../../services/businessRequestService';
@@ -71,8 +72,24 @@ export const ContactPage = () => {
     }
   };
 
+  const contactSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'ContactPage',
+    name: 'Request Ratevia for Your Business',
+    description:
+      'Contact Ratevia to get your Google review QR stand set up. One-time payment, no subscription.',
+    url: 'https://ratevia.in/contact',
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 space-y-12">
+      <SEOHead
+        title="Request Ratevia for Your Business"
+        description="Contact Ratevia to get your Google review QR stand set up. One-time payment, no subscription. Fill in your business details and our team will be in touch."
+        canonicalUrl="https://ratevia.in/contact"
+        schema={contactSchema}
+      />
+
       {/* Header */}
       <div className="text-center space-y-4 max-w-2xl mx-auto">
         <Badge variant="outline" className="font-mono text-xs uppercase">

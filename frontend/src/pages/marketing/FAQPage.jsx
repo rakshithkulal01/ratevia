@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import SEOHead from '../../components/seo/SEOHead';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -45,8 +46,29 @@ export const FAQPage = () => {
     },
   ];
 
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqs.map((faq) => ({
+      '@type': 'Question',
+      name: faq.q,
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: faq.a,
+      },
+    })),
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 space-y-12">
+      <SEOHead
+        title="Frequently Asked Questions — Ratevia"
+        exactTitle={true}
+        description="Answers about Ratevia's pricing, Google review compliance, data privacy, AI review assistance, and supported business categories."
+        canonicalUrl="https://ratevia.in/faq"
+        schema={faqSchema}
+      />
+
       {/* Header */}
       <div className="text-center space-y-4 max-w-2xl mx-auto">
         <Badge variant="outline" className="font-mono text-xs uppercase">

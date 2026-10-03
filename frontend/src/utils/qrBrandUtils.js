@@ -518,6 +518,75 @@ export function exportBrandedQRSVG({ business, config, qrSvgElement }) {
 }
 
 /**
+ * Deterministically splits text into up to 2 balanced lines that fit within maxTextWidth.
+ * Dynamically scales font down to minFontSize before applying gentle ellipsis.
+ */
+export function layoutBusinessNameLines(ctx, text, maxTextWidth, initialFontSize = 76, minFontSize = 32) {
+  const words = text.split(/\s+/).filter(Boolean);
+
+  // If text is short (< 22 chars) or single word, try 1 line first
+  if (text.length < 22 || words.length <= 1) {
+    let singleFs = initialFontSize;
+    while (singleFs >= minFontSize) {
+      ctx.font = `bold ${singleFs}px 'Calistoga', Georgia, serif`;
+      if (ctx.measureText(text).width <= maxTextWidth) {
+        return { lines: [text], fontSize: singleFs };
+      }
+      singleFs -= 4;
+    }
+  }
+
+  // If text is long (>= 22 chars) and has multiple words, prefer 2 balanced lines at larger legible font size
+  if (words.length > 1) {
+    let twoLineFs = Math.max(initialFontSize, 52);
+    while (twoLineFs >= minFontSize) {
+      ctx.font = `bold ${twoLineFs}px 'Calistoga', Georgia, serif`;
+      let bestSplit = null;
+      let minDiff = Infinity;
+
+      for (let i = 1; i < words.length; i++) {
+        const l1 = words.slice(0, i).join(' ');
+        const l2 = words.slice(i).join(' ');
+        const w1 = ctx.measureText(l1).width;
+        const w2 = ctx.measureText(l2).width;
+
+        if (w1 <= maxTextWidth && w2 <= maxTextWidth) {
+          const diff = Math.abs(w1 - w2);
+          if (diff < minDiff) {
+            minDiff = diff;
+            bestSplit = [l1, l2];
+          }
+        }
+      }
+
+      if (bestSplit) {
+        return { lines: bestSplit, fontSize: twoLineFs };
+      }
+
+      twoLineFs -= 4;
+    }
+  }
+
+  // Fallback: single line
+  let fontSize = initialFontSize;
+  while (fontSize > minFontSize) {
+    fontSize -= 4;
+    ctx.font = `bold ${fontSize}px 'Calistoga', Georgia, serif`;
+    if (ctx.measureText(text).width <= maxTextWidth) {
+      return { lines: [text], fontSize };
+    }
+  }
+
+  // Truncate if still exceeds maxTextWidth at minFontSize
+  ctx.font = `bold ${minFontSize}px 'Calistoga', Georgia, serif`;
+  let truncated = text;
+  while (truncated.length > 3 && ctx.measureText(truncated + '...').width > maxTextWidth) {
+    truncated = truncated.slice(0, -1);
+  }
+  return { lines: [truncated + '...'], fontSize: minFontSize };
+}
+
+/**
  * High-Resolution Ratevia Sticker Canvas Renderer (1364 x 2048 PNG)
  * Renders the clean fixed sticker template with real-time customized business name,
  * dynamic tagline, and current QR code into a 300DPI canvas.
@@ -549,22 +618,35 @@ export function renderRateviaStickerCanvas({
           ctx.drawImage(img, 0, 0, width, height);
 
           // 2. Draw Business Name (centered horizontally, between the fixed ✦ stars)
-          const rawName = (businessName || 'YOUR BUSINESS').toUpperCase();
-          const displayName = rawName.length > 32 ? rawName.slice(0, 30) + '...' : rawName;
+          const rawName = (businessName || 'YOUR BUSINESS').toUpperCase().trim();
           ctx.fillStyle = '#062464';
 
-          const fontSize =
-            displayName.length <= 10
+          const maxTextWidth = 830;
+          const initialFontSize =
+            rawName.length <= 12
               ? 76
-              : displayName.length <= 16
+              : rawName.length <= 18
               ? 64
-              : displayName.length <= 24
-              ? 50
-              : 40;
+              : rawName.length <= 26
+              ? 52
+              : rawName.length <= 36
+              ? 42
+              : 36;
+
+          const { lines, fontSize } = layoutBusinessNameLines(ctx, rawName, maxTextWidth, initialFontSize, 32);
+
           ctx.font = `bold ${fontSize}px 'Calistoga', Georgia, serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(displayName, width / 2, 276);
+
+          const centerY = 276;
+          if (lines.length === 1) {
+            ctx.fillText(lines[0], width / 2, centerY);
+          } else {
+            const lineHeight = fontSize * 1.15;
+            ctx.fillText(lines[0], width / 2, centerY - lineHeight / 2);
+            ctx.fillText(lines[1], width / 2, centerY + lineHeight / 2);
+          }
 
           // 3. Draw Business Tagline
           if (tagline && tagline.trim()) {

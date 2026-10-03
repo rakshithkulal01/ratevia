@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import { adminMiddleware, requirePermission } from '../middleware/adminMiddleware.js';
+import { getSupabaseAdmin } from '../config/supabase.js';
 import adminService from '../services/adminService.js';
 import qrRequestService from '../services/qrRequestService.js';
 import pricingService from '../services/pricingService.js';
@@ -95,6 +96,26 @@ router.patch('/business-requests/:id/contact', requirePermission('MANAGE_BUSINES
       message: 'Business request marked as contacted.',
       request: result.request,
     });
+  } catch (error) {
+    if (error.status === 404) {
+      return res.status(404).json({
+        error: 'NotFound',
+        message: error.message,
+      });
+    }
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/admin/business-requests/:id
+ * Permanently delete an individual business request row with proper authorization and cleanup.
+ */
+router.delete('/business-requests/:id', requirePermission('MANAGE_BUSINESS_REQUESTS'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await adminService.deleteBusinessRequest(id, req.user);
+    return res.status(200).json(result);
   } catch (error) {
     if (error.status === 404) {
       return res.status(404).json({
@@ -215,13 +236,42 @@ router.post('/qr-requests/:id/reject', requirePermission('MANAGE_QR_REQUESTS'), 
 });
 
 /**
+ * DELETE /api/admin/qr-requests/:id
+ * Permanently delete an individual QR customization request and associated storage artifact.
+ */
+router.delete('/qr-requests/:id', requirePermission('MANAGE_QR_REQUESTS'), async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await qrRequestService.deleteQRRequest(id, req.user);
+    return res.status(200).json(result);
+  } catch (error) {
+    if (error.status === 404) {
+      return res.status(404).json({
+        error: 'NotFound',
+        message: error.message,
+      });
+    }
+    next(error);
+  }
+});
+
+/**
  * GET /api/admin/qr-requests/:id/download
  * Download the complete customized Ratevia sticker PNG or fallback QR format.
  */
-router.get('/qr-requests/:id/download', requirePermission('MANAGE_QR'), async (req, res, next) => {
+router.get('/qr-requests/:id/download', (req, res, next) => {
+  const perms = req.adminUser?.permissions || [];
+  if (!perms.includes('MANAGE_QR') && !perms.includes('MANAGE_QR_REQUESTS')) {
+    return res.status(403).json({
+      error: 'InsufficientPermissions',
+      message: "Access denied. Requires 'MANAGE_QR' or 'MANAGE_QR_REQUESTS' permission.",
+    });
+  }
+  next();
+}, async (req, res, next) => {
   try {
     const { id } = req.params;
-    const format = req.query.format || (req.query.sticker ? 'sticker' : 'sticker');
+    const format = req.query.format ? req.query.format.toLowerCase() : 'sticker';
     const request = await qrRequestService.getAdminQRRequestById(id);
 
     const safeSlug = (request.businessName || 'business')
@@ -229,8 +279,16 @@ router.get('/qr-requests/:id/download', requirePermission('MANAGE_QR'), async (r
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '') || 'ratevia';
 
-    // 1. If sticker is requested or default and stickerImageUrl exists, deliver the complete sticker PNG
-    if ((format === 'sticker' || !req.query.format) && request.stickerImageUrl) {
+    // 1. Customized sticker design download (default, format=sticker, format=png)
+    const isCustomizedSticker = format === 'sticker' || format === 'png' || req.query.sticker === 'true' || !req.query.format;
+    if (isCustomizedSticker) {
+      if (!request.stickerImageUrl) {
+        return res.status(410).json({
+          error: 'StickerExpired',
+          message: 'The sticker preview has expired after 25 days and is no longer available for download.',
+        });
+      }
+
       const stickerUrl = request.stickerImageUrl;
 
       if (stickerUrl.startsWith('data:image/')) {
@@ -257,43 +315,48 @@ router.get('/qr-requests/:id/download', requirePermission('MANAGE_QR'), async (r
             return res.send(buffer);
           }
         } catch (fetchErr) {
-          console.warn('[AdminDownload] Remote fetch failed, falling back to QR generation:', fetchErr.message);
+          console.warn('[AdminDownload] Remote fetch failed, trying Supabase storage download:', fetchErr.message);
+        }
+
+        // Secure fallback: download directly via Supabase Admin SDK
+        try {
+          const sb = getSupabaseAdmin();
+          const { data: blobData, error: dlErr } = await sb.storage
+            .from('business-requests')
+            .download(`${id}/sticker.png`);
+          if (!dlErr && blobData) {
+            const arrayBuffer = await blobData.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+            res.setHeader('Content-Type', 'image/png');
+            res.setHeader('Content-Disposition', `attachment; filename="${safeSlug}-ratevia-sticker.png"`);
+            return res.send(buffer);
+          }
+        } catch (sbErr) {
+          console.warn('[AdminDownload] Supabase storage download exception:', sbErr.message);
         }
       }
+
+      return res.status(502).json({
+        error: 'StorageUnavailable',
+        message: 'Could not retrieve sticker image artifact from storage. Please try again later.',
+      });
     }
 
+    // 2. Explicitly requested standalone raw SVG format
     const urlToEncode = request.destinationUrl || 'https://ratevia.in';
+    const svgString = await QRCode.toString(urlToEncode, {
+      type: 'svg',
+      errorCorrectionLevel: 'H',
+      margin: 2,
+      color: {
+        dark: '#0F172A',
+        light: '#FFFFFF',
+      },
+    });
 
-    if (format === 'png') {
-      const pngBuffer = await QRCode.toBuffer(urlToEncode, {
-        type: 'png',
-        errorCorrectionLevel: 'H',
-        width: 1024,
-        margin: 2,
-        color: {
-          dark: '#0F172A',
-          light: '#FFFFFF',
-        },
-      });
-
-      res.setHeader('Content-Type', 'image/png');
-      res.setHeader('Content-Disposition', `attachment; filename="ratevia-${safeSlug}-qr.png"`);
-      return res.send(pngBuffer);
-    } else {
-      const svgString = await QRCode.toString(urlToEncode, {
-        type: 'svg',
-        errorCorrectionLevel: 'H',
-        margin: 2,
-        color: {
-          dark: '#0F172A',
-          light: '#FFFFFF',
-        },
-      });
-
-      res.setHeader('Content-Type', 'image/svg+xml');
-      res.setHeader('Content-Disposition', `attachment; filename="ratevia-${safeSlug}-qr.svg"`);
-      return res.send(svgString);
-    }
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Content-Disposition', `attachment; filename="ratevia-${safeSlug}-qr.svg"`);
+    return res.send(svgString);
   } catch (error) {
     if (error.status === 404) {
       return res.status(404).json({

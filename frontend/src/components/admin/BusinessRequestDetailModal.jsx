@@ -11,6 +11,7 @@ import {
   Plus,
   Loader2,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 import { getCategoryConfig } from '../../config/businessCategories';
 
@@ -19,6 +20,7 @@ export const BusinessRequestDetailModal = ({
   onClose,
   onLogContact,
   onOpenProvision,
+  onDelete,
   loggingContactId,
   copiedPhoneId,
   onCopyPhone,
@@ -232,14 +234,27 @@ export const BusinessRequestDetailModal = ({
 
         {/* Modal Actions */}
         <div className="flex items-center justify-between border-t border-border pt-4">
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-md"
-            onClick={onClose}
-          >
-            Close
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-md"
+              onClick={onClose}
+            >
+              Close
+            </Button>
+            {onDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-md text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
+                onClick={() => onDelete(request)}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                Delete
+              </Button>
+            )}
+          </div>
 
           <div className="flex items-center gap-2">
             {request.status === 'NEW' && (

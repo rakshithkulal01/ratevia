@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import SEOHead from '../../components/seo/SEOHead';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -7,10 +8,36 @@ import { CheckCircle2, ArrowRight, Sparkles } from 'lucide-react';
 import { usePlatformPrice } from '../../hooks/usePlatformPrice';
 
 export const PricingPage = () => {
-  const { formattedPrice } = usePlatformPrice();
+  const { formattedPrice, price, currency } = usePlatformPrice();
+
+  const softwareSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'Ratevia',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'All',
+    offers: {
+      '@type': 'Offer',
+      price: price || 1000,
+      priceCurrency: currency || 'INR',
+      priceValidUntil: '2027-12-31',
+      availability: 'https://schema.org/InStock',
+      url: 'https://ratevia.in/pricing',
+    },
+    description:
+      'One-time setup for local businesses to collect Google reviews using branded QR stands and smart AI-assisted prompts.',
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 space-y-16">
+      <SEOHead
+        title="Pricing — Ratevia Google Review QR Stand"
+        exactTitle={true}
+        description="Ratevia is a one-time payment for a complete Google review QR system. No monthly subscriptions. Includes branded QR stand, dashboard, and analytics."
+        canonicalUrl="https://ratevia.in/pricing"
+        schema={softwareSchema}
+      />
+
       {/* Header */}
       <div className="text-center space-y-4 max-w-2xl mx-auto">
         <Badge variant="outline" className="font-mono text-xs uppercase">

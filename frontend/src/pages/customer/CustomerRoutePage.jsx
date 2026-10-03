@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import SEOHead from '../../components/seo/SEOHead';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { AlertCircle, Clock, Loader2, MessageSquare } from 'lucide-react';
+
 
 import { qrService } from '../../services/qrService';
 import { feedbackService } from '../../services/feedbackService';
@@ -393,6 +395,10 @@ export const CustomerRoutePage = () => {
 
   return (
     <div className="min-h-screen bg-background py-8 sm:py-12 px-4 sm:px-6">
+      <SEOHead
+        title={business ? `${business.name} — Review` : 'Customer Review'}
+        noindex={true}
+      />
       <div className="max-w-xl mx-auto space-y-6">
         {/* Header */}
         <CustomerHeader business={business} categoryConfig={categoryConfig} />

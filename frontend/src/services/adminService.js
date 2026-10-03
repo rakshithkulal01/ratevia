@@ -34,6 +34,16 @@ export const adminService = {
   },
 
   /**
+   * Delete an individual business request row
+   */
+  deleteBusinessRequest: (token, requestId) => {
+    return apiRequest(`/api/admin/business-requests/${requestId}`, {
+      method: 'DELETE',
+      token,
+    });
+  },
+
+  /**
    * Toggle business active/suspended status
    */
   toggleBusinessStatus: (token, businessId, isActive) => {
@@ -97,6 +107,16 @@ export const adminService = {
     return apiRequest(`/api/admin/qr-requests/${id}/reject`, {
       method: 'POST',
       body: { reason },
+      token,
+    });
+  },
+
+  /**
+   * Delete an individual QR customization request row
+   */
+  deleteQRRequest: (token, id) => {
+    return apiRequest(`/api/admin/qr-requests/${id}`, {
+      method: 'DELETE',
       token,
     });
   },

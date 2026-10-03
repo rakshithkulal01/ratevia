@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import SEOHead from '../../components/seo/SEOHead';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -42,6 +43,7 @@ export const ForgotPasswordPage = () => {
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <SEOHead title="Reset Password" noindex={true} />
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-3">
           <Badge dot>Password Recovery</Badge>

@@ -2,7 +2,7 @@ import prisma from '../config/prisma.js';
 import { Prisma } from '@prisma/client';
 import { normalizePhoneNumber } from '../utils/phone.js';
 import pricingService from './pricingService.js';
-import { storeStickerImage } from '../utils/stickerStorage.js';
+import { storeStickerImage, deleteStickerImage } from '../utils/stickerStorage.js';
 import crypto from 'crypto';
 
 export const qrRequestService = {
@@ -69,24 +69,39 @@ export const qrRequestService = {
       finalStickerUrl = await storeStickerImage(requestId, stickerImage || stickerImageUrl);
     }
 
-    // 6. Store Request Entity
-    const request = await prisma.businessRequest.create({
-      data: {
-        id: requestId,
-        ownerName: contactName,
-        businessName,
-        businessType: category,
-        phoneNumber: normalizedPhone,
-        email: normalizedEmail,
-        city: city || null,
-        destinationUrl: destinationUrl.trim(),
-        qrConfig: qrConfig || {},
-        stickerImageUrl: finalStickerUrl,
-        stickerImageCreatedAt: finalStickerUrl ? new Date() : null,
-        quotedPrice: new Prisma.Decimal(price),
-        status: 'NEW',
-      },
-    });
+    // 6. Store Request Entity with Rollback on DB Error
+    let request;
+    try {
+      request = await prisma.businessRequest.create({
+        data: {
+          id: requestId,
+          ownerName: contactName,
+          businessName,
+          businessType: category,
+          phoneNumber: normalizedPhone,
+          email: normalizedEmail,
+          city: city || null,
+          destinationUrl: destinationUrl.trim(),
+          qrConfig: qrConfig || {},
+          stickerImageUrl: finalStickerUrl,
+          stickerImageCreatedAt: finalStickerUrl ? new Date() : null,
+          quotedPrice: new Prisma.Decimal(price),
+          status: 'NEW',
+        },
+      });
+    } catch (dbError) {
+      if (finalStickerUrl) {
+        try {
+          await deleteStickerImage(requestId, finalStickerUrl);
+        } catch (cleanupError) {
+          console.error(
+            `[QRRequest] Failed to rollback orphaned sticker storage for ${requestId}:`,
+            cleanupError.message
+          );
+        }
+      }
+      throw dbError; // Preserve original database error
+    }
 
     const referenceId = `RV-${request.id.slice(0, 8).toUpperCase()}`;
 
@@ -180,32 +195,40 @@ export const qrRequestService = {
       },
     });
 
-    return requests.map((r) => ({
-      id: r.id,
-      referenceId: `RV-${r.id.slice(0, 8).toUpperCase()}`,
-      businessName: r.businessName,
-      businessType: r.businessType,
-      ownerName: r.ownerName,
-      phoneNumber: r.phoneNumber,
-      email: r.email,
-      city: r.city,
-      destinationUrl: r.destinationUrl,
-      qrConfig: r.qrConfig,
-      stickerImageUrl: r.stickerImageUrl,
-      stickerImageCreatedAt: r.stickerImageCreatedAt,
-      quotedPrice: r.quotedPrice ? Number(r.quotedPrice) : null,
-      status: r.status,
-      createdAt: r.createdAt,
-      contactedAt: r.contactedAt,
-      contactedBy: r.contactedBy,
-      approvedAt: r.approvedAt,
-      approvedBy: r.approvedBy,
-      rejectedAt: r.rejectedAt,
-      rejectedBy: r.rejectedBy,
-      rejectionReason: r.rejectionReason,
-      provisionedAt: r.provisionedAt,
-      provisionedBusiness: r.provisionedBusiness,
-    }));
+    const now = Date.now();
+    const TWENTY_FIVE_DAYS_MS = 25 * 24 * 60 * 60 * 1000;
+
+    return requests.map((r) => {
+      const isStickerExpired = !r.stickerImageUrl && (now - new Date(r.createdAt).getTime() > TWENTY_FIVE_DAYS_MS);
+      return {
+        id: r.id,
+        referenceId: `RV-${r.id.slice(0, 8).toUpperCase()}`,
+        businessName: r.businessName,
+        businessType: r.businessType,
+        ownerName: r.ownerName,
+        phoneNumber: r.phoneNumber,
+        email: r.email,
+        city: r.city,
+        destinationUrl: r.destinationUrl,
+        qrConfig: r.qrConfig,
+        stickerImageUrl: r.stickerImageUrl,
+        stickerImageCreatedAt: r.stickerImageCreatedAt,
+        isStickerExpired,
+        isExpired: isStickerExpired,
+        quotedPrice: r.quotedPrice ? Number(r.quotedPrice) : null,
+        status: r.status,
+        createdAt: r.createdAt,
+        contactedAt: r.contactedAt,
+        contactedBy: r.contactedBy,
+        approvedAt: r.approvedAt,
+        approvedBy: r.approvedBy,
+        rejectedAt: r.rejectedAt,
+        rejectedBy: r.rejectedBy,
+        rejectionReason: r.rejectionReason,
+        provisionedAt: r.provisionedAt,
+        provisionedBusiness: r.provisionedBusiness,
+      };
+    });
   },
 
   /**
@@ -236,10 +259,16 @@ export const qrRequestService = {
       throw err;
     }
 
+    const now = Date.now();
+    const TWENTY_FIVE_DAYS_MS = 25 * 24 * 60 * 60 * 1000;
+    const isStickerExpired = !request.stickerImageUrl && (now - new Date(request.createdAt).getTime() > TWENTY_FIVE_DAYS_MS);
+
     return {
       ...request,
       referenceId: `RV-${request.id.slice(0, 8).toUpperCase()}`,
       quotedPrice: request.quotedPrice ? Number(request.quotedPrice) : null,
+      isStickerExpired,
+      isExpired: isStickerExpired,
     };
   },
 
@@ -328,6 +357,43 @@ export const qrRequestService = {
     );
 
     return { request: updated };
+  },
+
+  /**
+   * Admin: Delete QR customization request row and associated storage artifact.
+   */
+  deleteQRRequest: async (id, adminUser) => {
+    const request = await prisma.businessRequest.findUnique({
+      where: { id },
+    });
+
+    if (!request) {
+      const err = new Error('QR customization request not found.');
+      err.status = 404;
+      throw err;
+    }
+
+    // Clean up stored customized sticker image from Supabase Storage and disk
+    if (request.stickerImageUrl) {
+      try {
+        await deleteStickerImage(request.id, request.stickerImageUrl);
+      } catch (storageErr) {
+        console.warn(`[DeleteQRRequest] Storage cleanup warning for ${id}:`, storageErr.message);
+      }
+    }
+
+    await prisma.businessRequest.delete({
+      where: { id },
+    });
+
+    console.log(
+      `[DeleteQRRequest] QR request "${request.businessName}" (${id}) deleted by ${adminUser?.email || 'admin'}`
+    );
+
+    return {
+      success: true,
+      message: `QR customization request for "${request.businessName}" has been deleted.`,
+    };
   },
 };
 

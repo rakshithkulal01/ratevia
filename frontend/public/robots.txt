@@ -1,0 +1,35 @@
+# Ratevia Robots.txt
+# https://ratevia.in
+
+User-agent: *
+Allow: /
+Allow: /pricing
+Allow: /qr-customize
+Allow: /faq
+Allow: /contact
+Allow: /review-qr-code
+Allow: /review-qr-code/*
+Allow: /guides/*
+
+# Disallow Private & Application Paths
+Disallow: /dashboard
+Disallow: /dashboard/*
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /onboarding
+Disallow: /onboarding/*
+Disallow: /auth/
+Disallow: /auth/*
+Disallow: /login
+Disallow: /signup
+Disallow: /forgot-password
+Disallow: /design-system
+Disallow: /api/
+Disallow: /api/*
+
+# Customer review direct flow (ephemeral customer interaction)
+Disallow: /r/
+Disallow: /r/*
+
+# Sitemap
+Sitemap: https://ratevia.in/sitemap.xml

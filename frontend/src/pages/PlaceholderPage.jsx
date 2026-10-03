@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import SEOHead from '../components/seo/SEOHead';
 import { Badge } from '../components/ui/Badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -8,6 +9,7 @@ import { ArrowLeft } from 'lucide-react';
 export const PlaceholderPage = ({ title, description, phase, route }) => {
   return (
     <div className="mx-auto max-w-4xl px-4 py-20 sm:px-6 lg:px-8">
+      <SEOHead title={title || "Page Not Found"} noindex={true} />
       <div className="mb-6">
         <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Back to Design System Showcase

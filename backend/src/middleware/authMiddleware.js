@@ -67,12 +67,26 @@ export const authMiddleware = async (req, res, next) => {
       });
     }
 
-    // Look up local user in PostgreSQL
+    // Look up local user in PostgreSQL by supabaseUserId, or fallback to email
     let dbUser = null;
     try {
       dbUser = await prisma.user.findUnique({
         where: { supabaseUserId: supabaseUser.id },
       });
+
+      if (!dbUser && supabaseUser.email) {
+        dbUser = await prisma.user.findFirst({
+          where: { email: { equals: supabaseUser.email, mode: 'insensitive' } },
+        });
+
+        // Link verified supabaseUserId if found by email
+        if (dbUser && dbUser.supabaseUserId !== supabaseUser.id) {
+          dbUser = await prisma.user.update({
+            where: { id: dbUser.id },
+            data: { supabaseUserId: supabaseUser.id },
+          });
+        }
+      }
     } catch (dbError) {
       console.error('[AuthMiddleware] DB lookup error:', dbError.message);
       // DB connection issues should not be masked as a simple 401

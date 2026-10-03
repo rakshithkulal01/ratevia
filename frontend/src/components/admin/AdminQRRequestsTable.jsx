@@ -11,6 +11,8 @@ import {
   Plus,
   Copy,
   Check,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
 
 const STATUS_VARIANTS = {
@@ -29,8 +31,11 @@ export const AdminQRRequestsTable = ({
   onReject,
   onDownload,
   onProvision,
+  onDelete,
   contactingId,
   approvingId,
+  downloadingId,
+  deletingId,
   copiedPhoneId,
   onCopyPhone,
 }) => {
@@ -178,6 +183,40 @@ export const AdminQRRequestsTable = ({
                       >
                         <Plus className="h-3.5 w-3.5 mr-1" />
                         Provision
+                      </Button>
+                    )}
+
+                    {onDownload && (r.stickerImageUrl || (!r.isStickerExpired && !r.isExpired)) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => onDownload(r, e)}
+                        disabled={downloadingId === r.id}
+                        className="h-8 px-2 text-xs text-slate-700 hover:text-accent border-slate-200"
+                        title="Download Customized Sticker (PNG)"
+                      >
+                        {downloadingId === r.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Download className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    )}
+
+                    {onDelete && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => onDelete(r, e)}
+                        disabled={deletingId === r.id}
+                        className="h-8 px-2 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
+                        title="Delete Request"
+                      >
+                        {deletingId === r.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
                       </Button>
                     )}
                   </div>

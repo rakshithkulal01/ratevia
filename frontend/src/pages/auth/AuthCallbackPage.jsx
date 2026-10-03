@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import SEOHead from '../../components/seo/SEOHead';
 import { supabase } from '../../lib/supabase';
+
 import { useAuth } from '../../context/AuthContext';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -99,6 +101,7 @@ export const AuthCallbackPage = () => {
   if (error) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
+        <SEOHead title="Authentication Error" noindex={true} />
         <Card className="max-w-md w-full text-center">
           <CardContent className="pt-6 space-y-4">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-500 border border-red-200">
@@ -121,6 +124,7 @@ export const AuthCallbackPage = () => {
 
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center space-y-4">
+      <SEOHead title="Authenticating" noindex={true} />
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-accent to-accent-secondary text-white shadow-xl shadow-accent/25 animate-pulse">
         <Sparkles className="h-7 w-7 animate-spin" />
       </div>
