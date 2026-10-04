@@ -2,13 +2,20 @@ import { apiRequest } from './apiClient.js';
 
 export const analyticsService = {
   /**
-   * Log public customer funnel events (QR_SCANNED, FEEDBACK_STARTED, etc.)
+   * Send a batch of aggregated customer sessions (Primary trigger: 25 sessions)
    */
-  logEvent: (payload) => {
-    return apiRequest('/api/analytics/events', {
+  sendBatch: (batchPayload) => {
+    return apiRequest('/api/analytics/batch', {
       method: 'POST',
-      body: payload,
+      body: batchPayload,
     });
+  },
+
+  /**
+   * Log single event (Deprecated - replaced by client-side session batching)
+   */
+  logEvent: () => {
+    return Promise.resolve();
   },
 
   /**

@@ -3,7 +3,7 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { RateviaStickerPreview } from '../dashboard/RateviaStickerPreview';
-import { getQRBrandConfig } from '../../utils/qrBrandUtils';
+import { getQRBrandConfig, buildCustomerQRUrl, slugify } from '../../utils/qrBrandUtils';
 import {
   X,
   Phone,
@@ -53,6 +53,13 @@ export const QRRequestDetailsModal = ({
     });
   }, [request]);
 
+  // Compute the Ratevia QR destination URL
+  const requestCustomerUrl = useMemo(() => {
+    if (!request) return '';
+    const slug = request.provisionedBusiness?.slug || slugify(request.businessName || 'business');
+    return buildCustomerQRUrl(slug);
+  }, [request]);
+
   if (!request) return null;
 
   const handleCopyPhone = () => {
@@ -69,7 +76,8 @@ export const QRRequestDetailsModal = ({
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '') || 'sticker';
 
-      const url = `${API_BASE_URL}/api/admin/qr-requests/${request.id}/download?format=${format}`;
+      const rawParam = format === 'png' ? '&raw=true' : '';
+      const url = `${API_BASE_URL}/api/admin/qr-requests/${request.id}/download?format=${format}${rawParam}`;
       const res = await fetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -189,7 +197,7 @@ export const QRRequestDetailsModal = ({
 
               <div className="space-y-2">
                 <div>
-                  <span className="text-slate-400 block text-[11px] mb-0.5">Destination URL</span>
+                  <span className="text-slate-400 block text-[11px] mb-0.5">Google Review / Target Destination</span>
                   <a
                     href={request.destinationUrl}
                     target="_blank"
@@ -197,6 +205,19 @@ export const QRRequestDetailsModal = ({
                     className="inline-flex items-center gap-1.5 text-accent hover:underline font-mono text-xs break-all bg-white p-2 rounded border border-border w-full"
                   >
                     <span>{request.destinationUrl}</span>
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0 ml-auto" />
+                  </a>
+                </div>
+
+                <div>
+                  <span className="text-slate-400 block text-[11px] mb-0.5">Encoded Ratevia QR Route</span>
+                  <a
+                    href={requestCustomerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-emerald-700 hover:underline font-mono text-xs break-all bg-white p-2 rounded border border-emerald-200 w-full"
+                  >
+                    <span>{requestCustomerUrl}</span>
                     <ExternalLink className="h-3.5 w-3.5 shrink-0 ml-auto" />
                   </a>
                 </div>
@@ -308,7 +329,7 @@ export const QRRequestDetailsModal = ({
                 <RateviaStickerPreview
                   businessName={request.businessName}
                   tagline={request.qrConfig?.tagline || ''}
-                  customerUrl={request.destinationUrl}
+                  customerUrl={requestCustomerUrl}
                   config={brandConfig}
                   badgeType={request.qrConfig?.badgeType || 'sparkle'}
                   className="max-w-[270px]"

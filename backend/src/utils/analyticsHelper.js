@@ -19,6 +19,7 @@ export async function recordDailyFeedbackAnalytics(
   ratingOrObj,
   topics = [],
   hasGeneratedReview = false,
+  includeScan = false,
   maxRetries = 3
 ) {
   let rating = ratingOrObj;
@@ -26,6 +27,7 @@ export async function recordDailyFeedbackAnalytics(
     rating = ratingOrObj.rating;
     topics = ratingOrObj.topics || ratingOrObj.selectedTopics || [];
     hasGeneratedReview = ratingOrObj.hasGeneratedReview || Boolean(ratingOrObj.generatedReview);
+    if (ratingOrObj.includeScan !== undefined) includeScan = Boolean(ratingOrObj.includeScan);
   }
 
   const date = getNormalizedDate();
@@ -72,6 +74,7 @@ export async function recordDailyFeedbackAnalytics(
         create: {
           businessId,
           date,
+          qrScans: includeScan ? 1 : 0,
           feedbackStarted: 1,
           reviewsGenerated: hasGeneratedReview ? 1 : 0,
           [ratingKey]: 1,
@@ -79,6 +82,7 @@ export async function recordDailyFeedbackAnalytics(
           improvementTopicCounts: improvementTopics,
         },
         update: {
+          ...(includeScan ? { qrScans: { increment: 1 } } : {}),
           feedbackStarted: { increment: 1 },
           reviewsGenerated: hasGeneratedReview ? { increment: 1 } : undefined,
           [ratingKey]: { increment: 1 },
@@ -196,15 +200,11 @@ export async function flushPendingAnalytics() {
 }
 
 /**
- * Enqueue a raw event for batch insertion.
+ * Enqueue a raw event (Deprecated - no-op to eliminate redundant DB writes and storage overhead).
+ * Preserved for backwards compatibility with any remaining call sites.
  */
-export function queueRawAnalyticsEvent(event) {
-  rawEventQueue.push(event);
-  if (!rawEventFlushTimeout) {
-    rawEventFlushTimeout = setTimeout(() => {
-      flushPendingAnalytics().catch(() => {});
-    }, 100);
-  }
+export function queueRawAnalyticsEvent() {
+  // No-op: Raw event creation has been discontinued in favor of DailyBusinessAnalytics batch aggregation.
 }
 
 /**

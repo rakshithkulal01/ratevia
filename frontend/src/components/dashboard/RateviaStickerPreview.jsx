@@ -1,7 +1,7 @@
 import React from 'react';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import { Power, Sparkles, ShieldCheck } from 'lucide-react';
-import { generateCenterSparkleSvgUri } from '../../utils/qrBrandUtils';
+import { generateCenterSparkleSvgUri, buildCustomerQRUrl, slugify } from '../../utils/qrBrandUtils';
 
 /**
  * RateviaStickerPreview
@@ -14,7 +14,7 @@ export const RateviaStickerPreview = React.forwardRef(
     {
       businessName = '',
       tagline = '',
-      customerUrl = 'https://ratevia.in',
+      customerUrl = '',
       config,
       isPaused = false,
       badgeType = 'sparkle', // 'sparkle' | 'initials'
@@ -29,6 +29,9 @@ export const RateviaStickerPreview = React.forwardRef(
     const hasName = rawName.length > 0;
     const displayName = hasName ? rawName.toUpperCase() : '';
     const cleanTagline = (tagline || '').trim();
+
+    // Default to Ratevia review URL based on slug if customerUrl not explicitly provided
+    const targetUrl = customerUrl || buildCustomerQRUrl(slugify(rawName) || 'demo');
 
     const accentHex = config?.accent?.hex || '#0052FF';
     const fgColor = config?.style?.fgColor || '#0A1C3C';
@@ -137,7 +140,7 @@ export const RateviaStickerPreview = React.forwardRef(
           <div className="w-[88%] h-[88%] flex items-center justify-center p-1 bg-white rounded-xl shadow-xs transition-transform duration-200">
             <QRCodeSVG
               id="ratevia-sticker-qr-svg"
-              value={customerUrl || 'https://ratevia.in'}
+              value={targetUrl}
               size={210}
               level="H"
               fgColor={fgColor}
@@ -168,7 +171,7 @@ export const RateviaStickerPreview = React.forwardRef(
         {qrCanvasRef && (
           <div ref={qrCanvasRef} className="hidden" aria-hidden="true">
             <QRCodeCanvas
-              value={customerUrl || 'https://ratevia.in'}
+              value={targetUrl}
               size={1024}
               level="H"
               fgColor={fgColor}

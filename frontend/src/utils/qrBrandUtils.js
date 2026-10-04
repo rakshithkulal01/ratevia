@@ -238,12 +238,33 @@ export function generateCenterSparkleSvgUri(accentHex = '#0D92F4') {
 }
 
 /**
+ * Generates a clean, URL-safe slug from a string.
+ */
+export function slugify(text) {
+  if (!text || typeof text !== 'string') return '';
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-')
+    .replace(/^-+/, '')
+    .replace(/-+$/, '');
+}
+
+/**
  * Authoritative Customer QR URL Builder
- * Preserves the contract: /r/:businessSlug
+ * Preserves the contract: {FRONTEND_BASE_URL}/r/{businessSlug}
+ * Guarantees no trailing slashes on base and no duplicate slashes.
  */
 export function buildCustomerQRUrl(businessSlug) {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
-  return `${origin}/r/${businessSlug || 'demo'}`;
+  const envBase = typeof import.meta !== 'undefined' && import.meta.env?.VITE_FRONTEND_URL;
+  const windowBase = typeof window !== 'undefined' && window.location?.origin;
+  const rawBase = envBase || windowBase || 'http://localhost:5173';
+  const cleanBase = rawBase.trim().replace(/\/+$/, '');
+  const cleanSlug = (businessSlug || 'demo').trim().replace(/^\/+/, '');
+  return `${cleanBase}/r/${cleanSlug}`;
 }
 
 /**

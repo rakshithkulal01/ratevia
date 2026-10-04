@@ -1,6 +1,7 @@
 import prisma from '../config/prisma.js';
 import { generateUniqueBusinessSlug } from '../utils/slug.js';
 import { deleteStickerImage } from '../utils/stickerStorage.js';
+import { getCustomerReviewUrl } from '../utils/url.js';
 
 export const adminService = {
   /**
@@ -13,7 +14,7 @@ export const adminService = {
       suspendedBusinesses,
       totalUsers,
       totalFeedbacks,
-      totalQrScans,
+      qrScansAggregate,
       totalRequests,
       newRequests,
       contactedRequests,
@@ -23,7 +24,9 @@ export const adminService = {
       prisma.business.count({ where: { isActive: false } }),
       prisma.user.count(),
       prisma.feedback.count(),
-      prisma.analyticsEvent.count({ where: { eventType: 'QR_SCANNED' } }),
+      prisma.dailyBusinessAnalytics.aggregate({
+        _sum: { qrScans: true },
+      }),
       prisma.businessRequest.count(),
       prisma.businessRequest.count({ where: { status: 'NEW' } }),
       prisma.businessRequest.count({ where: { status: 'CONTACTED' } }),
@@ -35,7 +38,7 @@ export const adminService = {
       suspendedBusinesses,
       totalUsers,
       totalFeedbacks,
-      totalQrScans,
+      totalQrScans: qrScansAggregate?._sum?.qrScans || 0,
       totalRequests,
       newRequests,
       contactedRequests,
@@ -60,7 +63,6 @@ export const adminService = {
         _count: {
           select: {
             feedbacks: true,
-            analyticsEvents: true,
           },
         },
       },
@@ -72,12 +74,13 @@ export const adminService = {
       slug: b.slug,
       businessType: b.businessType,
       googleReviewUrl: b.googleReviewUrl,
+      customerUrl: getCustomerReviewUrl(b.slug),
       isActive: b.isActive,
       status: b.isActive ? 'ACTIVE' : 'SUSPENDED',
       createdAt: b.createdAt,
       owner: b.owner,
       feedbackCount: b._count.feedbacks,
-      eventsCount: b._count.analyticsEvents,
+      eventsCount: 0,
     }));
   },
 
@@ -354,6 +357,7 @@ export const adminService = {
         businessType: business.businessType,
         googleReviewUrl: business.googleReviewUrl,
         destinationUrl: business.destinationUrl,
+        customerUrl: getCustomerReviewUrl(business.slug),
         isActive: business.isActive,
         status: 'ACTIVE',
         owner: business.owner,

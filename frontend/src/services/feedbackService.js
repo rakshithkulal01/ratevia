@@ -12,23 +12,17 @@ export const feedbackService = {
   },
 
   /**
-   * Log that customer copied the generated review
+   * Log that customer copied the generated review (Deprecated - handled via analytics batching)
    */
-  logReviewCopied: (feedbackId, payload = {}) => {
-    return apiRequest(`/api/feedback/${feedbackId}/copied`, {
-      method: 'POST',
-      body: payload,
-    });
+  logReviewCopied: () => {
+    return Promise.resolve({ success: true });
   },
 
   /**
-   * Log that customer clicked the Google review redirect link
+   * Log that customer clicked the Google review redirect link (Deprecated - handled via analytics batching)
    */
-  logGoogleClicked: (feedbackId, payload = {}) => {
-    return apiRequest(`/api/feedback/${feedbackId}/google-clicked`, {
-      method: 'POST',
-      body: payload,
-    });
+  logGoogleClicked: () => {
+    return Promise.resolve({ success: true });
   },
 
   /**

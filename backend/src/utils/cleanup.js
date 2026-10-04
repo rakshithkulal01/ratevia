@@ -40,13 +40,21 @@ export async function runDataRetentionCleanup() {
       },
     });
 
+    // 4. Purge processed idempotency batches older than 30 days
+    const batchesResult = await prisma.analyticsBatch.deleteMany({
+      where: {
+        createdAt: { lt: thirtyDaysAgo },
+      },
+    });
+
     console.log(
-      `[Cleanup] Data retention cleanup complete: deleted ${feedbackResult.count} old raw 1-3★ feedbacks, ${oldFourFiveStarResult.count} 4-5★ feedbacks, ${eventsResult.count} old raw events.`
+      `[Cleanup] Data retention cleanup complete: deleted ${feedbackResult.count} old raw 1-3★ feedbacks, ${oldFourFiveStarResult.count} 4-5★ feedbacks, ${eventsResult.count} old raw events, ${batchesResult.count} old idempotency batches.`
     );
 
     return {
       deletedFeedbacks: feedbackResult.count + oldFourFiveStarResult.count,
       deletedEvents: eventsResult.count,
+      deletedBatches: batchesResult.count,
     };
   } catch (err) {
     console.error('[Cleanup] Error during data retention cleanup:', err.message);

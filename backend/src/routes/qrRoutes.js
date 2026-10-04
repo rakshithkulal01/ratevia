@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import prisma from '../config/prisma.js';
 import { env } from '../config/env.js';
-import { recordDailyEventAnalytics, queueRawAnalyticsEvent } from '../utils/analyticsHelper.js';
+import { getCustomerReviewUrl } from '../utils/url.js';
 
 const router = Router();
 
@@ -71,8 +71,7 @@ router.get('/', authMiddleware, async (req, res, next) => {
       });
     }
 
-    const frontendBase = env.FRONTEND_URL || 'http://localhost:5173';
-    const customerUrl = `${frontendBase}/r/${business.slug}`;
+    const customerUrl = getCustomerReviewUrl(business.slug);
 
     return res.status(200).json({
       qrCode,
@@ -127,8 +126,7 @@ router.post('/regenerate', authMiddleware, async (req, res, next) => {
       },
     });
 
-    const frontendBase = env.FRONTEND_URL || 'http://localhost:5173';
-    const customerUrl = `${frontendBase}/r/${business.slug}`;
+    const customerUrl = getCustomerReviewUrl(business.slug);
 
     return res.status(201).json({
       qrCode: newQr,
@@ -245,6 +243,7 @@ router.get('/public/:businessSlug', async (req, res, next) => {
     }
 
     if (!business || !business.isActive) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.status(403).json({
         error: 'BusinessSuspended',
         isSuspended: true,
@@ -260,6 +259,7 @@ router.get('/public/:businessSlug', async (req, res, next) => {
     // Check if QR code is paused by business owner
     const qr = business.qrCodes[0];
     if (!qr || !qr.active) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       return res.status(403).json({
         error: 'QRPaused',
         isPaused: true,
@@ -271,22 +271,9 @@ router.get('/public/:businessSlug', async (req, res, next) => {
       });
     }
 
-    // Record QR scan in DailyBusinessAnalytics and operational event
-    // Run analytics non-blockingly so the customer gets a fast response
-    const scanSessionId = req.headers['x-session-id'] || null;
-    const userAgent = req.headers['user-agent'] || null;
-    const ip = req.ip || null;
-
-    recordDailyEventAnalytics(business.id, 'QR_SCANNED');
-    queueRawAnalyticsEvent({
-      businessId: business.id,
-      eventType: 'QR_SCANNED',
-      sessionId: scanSessionId,
-      metadata: {
-        userAgent,
-        ip,
-      },
-    });
+    // Fast, read-only response with HTTP browser/edge caching.
+    // Scan analytics are collected asynchronously via frontend batching.
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
 
     return res.status(200).json({
       business: {

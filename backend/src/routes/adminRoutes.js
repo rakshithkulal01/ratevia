@@ -10,6 +10,8 @@ import adminService from '../services/adminService.js';
 import qrRequestService from '../services/qrRequestService.js';
 import pricingService from '../services/pricingService.js';
 import adminManagementService from '../services/adminManagementService.js';
+import { getCustomerReviewUrl } from '../utils/url.js';
+import { slugify } from '../utils/slug.js';
 import {
   provisionBusinessSchema,
   statusUpdateSchema,
@@ -274,13 +276,17 @@ router.get('/qr-requests/:id/download', (req, res, next) => {
     const format = req.query.format ? req.query.format.toLowerCase() : 'sticker';
     const request = await qrRequestService.getAdminQRRequestById(id);
 
-    const safeSlug = (request.businessName || 'business')
+    const targetSlug = (request.provisionedBusiness?.slug || slugify(request.businessName || 'business')).trim().replace(/^\/+/, '') || 'ratevia';
+    const safeSlug = targetSlug
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '') || 'ratevia';
 
-    // 1. Customized sticker design download (default, format=sticker, format=png)
-    const isCustomizedSticker = format === 'sticker' || format === 'png' || req.query.sticker === 'true' || !req.query.format;
+    const urlToEncode = getCustomerReviewUrl(targetSlug);
+
+    // 1. Customized sticker design download (default, format=sticker, format=png when raw is not specified)
+    const isRawQR = req.query.raw === 'true' || format === 'raw-png' || format === 'raw';
+    const isCustomizedSticker = (format === 'sticker' || (format === 'png' && !isRawQR) || req.query.sticker === 'true' || !req.query.format) && !isRawQR;
     if (isCustomizedSticker) {
       if (!request.stickerImageUrl) {
         return res.status(410).json({
@@ -342,21 +348,39 @@ router.get('/qr-requests/:id/download', (req, res, next) => {
       });
     }
 
-    // 2. Explicitly requested standalone raw SVG format
-    const urlToEncode = request.destinationUrl || 'https://ratevia.in';
-    const svgString = await QRCode.toString(urlToEncode, {
-      type: 'svg',
-      errorCorrectionLevel: 'H',
-      margin: 2,
-      color: {
-        dark: '#0F172A',
-        light: '#FFFFFF',
-      },
-    });
+    // 2. Standalone raw SVG or PNG format
+    if (format === 'svg') {
+      const svgString = await QRCode.toString(urlToEncode, {
+        type: 'svg',
+        errorCorrectionLevel: 'H',
+        margin: 2,
+        color: {
+          dark: '#0F172A',
+          light: '#FFFFFF',
+        },
+      });
 
-    res.setHeader('Content-Type', 'image/svg+xml');
-    res.setHeader('Content-Disposition', `attachment; filename="ratevia-${safeSlug}-qr.svg"`);
-    return res.send(svgString);
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.setHeader('Content-Disposition', `attachment; filename="ratevia-${safeSlug}-qr.svg"`);
+      return res.send(svgString);
+    }
+
+    if (format === 'png' || format === 'raw-png') {
+      const pngBuffer = await QRCode.toBuffer(urlToEncode, {
+        type: 'png',
+        errorCorrectionLevel: 'H',
+        margin: 2,
+        width: 1024,
+        color: {
+          dark: '#0F172A',
+          light: '#FFFFFF',
+        },
+      });
+
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Disposition', `attachment; filename="ratevia-${safeSlug}-qr.png"`);
+      return res.send(pngBuffer);
+    }
   } catch (error) {
     if (error.status === 404) {
       return res.status(404).json({

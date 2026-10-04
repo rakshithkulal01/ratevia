@@ -8,10 +8,10 @@ import { AlertCircle, Clock, Loader2, MessageSquare } from 'lucide-react';
 
 import { qrService } from '../../services/qrService';
 import { feedbackService } from '../../services/feedbackService';
-import { analyticsService } from '../../services/analyticsService';
 import { getSessionId } from '../../utils/session';
 import { generateReviewText } from '../../utils/reviewEngine';
 import { getCategoryConfig } from '../../config/businessCategories';
+import { recordSession } from '../../utils/analyticsQueue';
 
 import { CustomerHeader } from '../../components/customer/CustomerHeader';
 import { RatingSelector } from '../../components/customer/RatingSelector';
@@ -49,7 +49,7 @@ export const CustomerRoutePage = () => {
 
   const sessionId = useMemo(() => getSessionId(), []);
 
-  // 1. Resolve business information on load
+  // 1. Resolve business information on load (cached, 0 synchronous DB writes)
   useEffect(() => {
     let mounted = true;
 
@@ -62,6 +62,14 @@ export const CustomerRoutePage = () => {
         if (!mounted) return;
 
         setBusiness(data.business);
+
+        // Record QR scan in client-side analytics accumulator
+        recordSession(businessSlug, {
+          sessionId,
+          scanned: true,
+          rating: 0,
+          feedbackStarted: false,
+        });
       } catch (err) {
         if (!mounted) return;
         if (err.status === 403) {
@@ -108,15 +116,11 @@ export const CustomerRoutePage = () => {
 
       setGeneratedReview(generated);
 
-      if (feedbackId) {
-        analyticsService
-          .logEvent({
-            businessId: business?.id,
-            eventType: 'REVIEW_GENERATED',
-            sessionId,
-            metadata: { rating, topicCount: selectedTopics.length, variationIndex },
-          })
-          .catch(() => {});
+      if (businessSlug) {
+        recordSession(businessSlug, {
+          sessionId,
+          reviewGenerated: true,
+        });
       }
     }, 150);
 
@@ -130,12 +134,12 @@ export const CustomerRoutePage = () => {
     variationIndex,
     business?.name,
     businessCategory,
-    feedbackId,
+    businessSlug,
     sessionId,
     hasCustomEdits,
   ]);
 
-  // Rating Selection Handler
+  // Rating Selection Handler (100% Client-Side, 0 API Calls)
   const handleSelectRating = async (selectedStar) => {
     setRating(selectedStar);
     setSelectedTopics([]);
@@ -145,33 +149,29 @@ export const CustomerRoutePage = () => {
     setClipboardFailedOnce(false);
     setActionError(null);
 
-    if (business?.id) {
-      analyticsService
-        .logEvent({
-          businessId: business.id,
-          eventType: 'RATING_SELECTED',
-          sessionId,
-          metadata: { rating: selectedStar },
-        })
-        .catch(() => {});
-
-      if (!feedbackId) {
-        analyticsService
-          .logEvent({
-            businessId: business.id,
-            eventType: 'FEEDBACK_STARTED',
-            sessionId,
-          })
-          .catch(() => {});
-      }
+    if (businessSlug) {
+      recordSession(businessSlug, {
+        sessionId,
+        scanned: true,
+        feedbackStarted: true,
+        rating: selectedStar,
+        topics: [],
+      });
     }
   };
 
-  // Topic Toggle Handler
+  // Topic Toggle Handler (100% Client-Side, 0 API Calls)
   const handleToggleTopic = (topic) => {
-    setSelectedTopics((prev) =>
-      prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]
-    );
+    setSelectedTopics((prev) => {
+      const updated = prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic];
+      if (businessSlug) {
+        recordSession(businessSlug, {
+          sessionId,
+          topics: updated,
+        });
+      }
+      return updated;
+    });
     setCopySuccess(false);
     setCopyError(null);
   };
@@ -192,7 +192,7 @@ export const CustomerRoutePage = () => {
     setCopyError(null);
   };
 
-  // Submit Feedback to Backend
+  // Submit Constructive 1–3★ Feedback to Backend (30-day retention, combines scan analytics)
   const submitFeedbackPayload = async () => {
     if (!business || rating === 0) return null;
     setIsSubmitting(true);
@@ -206,12 +206,14 @@ export const CustomerRoutePage = () => {
         selectedTopics,
         customerMessage: customerMessage.trim() || null,
         generatedReview: generatedReview.trim() || null,
+        scanned: true,
       });
 
       setFeedbackId(data.feedbackId);
       return data.feedbackId;
     } catch (err) {
-      setActionError(err.message || 'Could not save feedback.');
+      console.warn('[CustomerFeedback] Submit feedback error:', err);
+      // Non-blocking: Do not block customer from continuing to Google if feedback submission fails
       return null;
     } finally {
       setIsSubmitting(false);
@@ -241,10 +243,14 @@ export const CustomerRoutePage = () => {
     // If user already experienced a clipboard failure, allow continuing to Google on subsequent click
     if (clipboardFailedOnce) {
       try {
-        const fId = feedbackId || (await submitFeedbackPayload());
-        if (fId) {
-          feedbackService.logGoogleClicked(fId, { sessionId }).catch(() => {});
+        if (rating <= 3 && !feedbackId) {
+          await submitFeedbackPayload();
         }
+        recordSession(businessSlug, {
+          sessionId,
+          googleClicked: true,
+          completed: true,
+        });
         window.open(business.googleReviewUrl, '_blank', 'noopener,noreferrer');
         setIsCompleted(true);
       } catch {
@@ -293,23 +299,28 @@ export const CustomerRoutePage = () => {
       setCopyError(null);
 
       try {
-        // 2. Persist feedback (if not already done)
-        const fId = feedbackId || (await submitFeedbackPayload());
-
-        // 3. Record REVIEW_COPIED
-        if (fId) {
-          feedbackService.logReviewCopied(fId, { sessionId }).catch(() => {});
+        // 2. For constructive 1-3★ feedback, persist to backend for business operational review
+        if (rating <= 3 && !feedbackId) {
+          await submitFeedbackPayload();
         }
 
-        // 4. Record GOOGLE_LINK_CLICKED
-        if (fId) {
-          feedbackService.logGoogleClicked(fId, { sessionId }).catch(() => {});
-        }
+        // 3. Record completed session in client-side analytics queue (0 per-event HTTP calls)
+        recordSession(businessSlug, {
+          sessionId,
+          scanned: true,
+          feedbackStarted: true,
+          rating,
+          topics: selectedTopics,
+          reviewGenerated: true,
+          reviewCopied: true,
+          googleClicked: true,
+          completed: true,
+        });
 
-        // 5. Allow customer to see the confirmation banner for ~800ms before navigating
+        // 4. Allow customer to see the confirmation banner for ~800ms before navigating
         await new Promise((resolve) => setTimeout(resolve, 800));
 
-        // 6. Open Google review page
+        // 5. Open Google review page
         window.open(business.googleReviewUrl, '_blank', 'noopener,noreferrer');
         setIsCompleted(true);
       } catch {

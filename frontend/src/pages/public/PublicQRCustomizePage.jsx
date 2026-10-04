@@ -17,6 +17,8 @@ import {
   getCategoryDefaultAccent,
   DEFAULT_QR_MESSAGE,
   renderRateviaStickerDataUrl,
+  buildCustomerQRUrl,
+  slugify,
 } from '../../utils/qrBrandUtils';
 import {
   Sparkles,
@@ -89,13 +91,11 @@ export const PublicQRCustomizePage = () => {
     });
   }, [businessName, category, selectedAccent, selectedStyle, selectedMessage]);
 
-  // Live QR encode target
+  // Live QR encode target - Ratevia review URL
   const livePreviewUrl = useMemo(() => {
-    if (destinationUrl.trim()) {
-      return destinationUrl.trim();
-    }
-    return 'https://ratevia.in';
-  }, [destinationUrl]);
+    const slug = slugify(businessName) || 'your-business';
+    return buildCustomerQRUrl(slug);
+  }, [businessName]);
 
   // Form Validation & Submission
   const handleSubmit = async (e) => {

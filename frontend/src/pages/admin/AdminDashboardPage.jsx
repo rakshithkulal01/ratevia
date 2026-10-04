@@ -175,7 +175,7 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
       if (selectedRequest?.id === requestId) {
         setSelectedRequest((prev) => ({ ...prev, ...json.request }));
       }
-      await loadAdminData();
+      adminService.getStats(session.access_token).then((d) => setStats(d.stats)).catch(() => {});
       setTimeout(() => setActionSuccess(null), 3500);
     } catch (err) {
       alert(err.message || 'Failed to log contact.');
@@ -197,7 +197,7 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
       if (selectedQRRequest?.id === requestId) {
         setSelectedQRRequest((prev) => ({ ...prev, ...json.request }));
       }
-      await loadAdminData();
+      adminService.getStats(session.access_token).then((d) => setStats(d.stats)).catch(() => {});
       setTimeout(() => setActionSuccess(null), 3500);
     } catch (err) {
       alert(err.message || 'Failed to mark contact.');
@@ -219,7 +219,7 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
       if (selectedQRRequest?.id === requestId) {
         setSelectedQRRequest((prev) => ({ ...prev, ...json.request }));
       }
-      await loadAdminData();
+      adminService.getStats(session.access_token).then((d) => setStats(d.stats)).catch(() => {});
       setTimeout(() => setActionSuccess(null), 3500);
     } catch (err) {
       alert(err.message || 'Failed to approve QR request.');
@@ -240,7 +240,7 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
       if (selectedQRRequest?.id === requestId) {
         setSelectedQRRequest((prev) => ({ ...prev, ...json.request }));
       }
-      await loadAdminData();
+      adminService.getStats(session.access_token).then((d) => setStats(d.stats)).catch(() => {});
       setTimeout(() => setActionSuccess(null), 3500);
     } catch (err) {
       alert(err.message || 'Failed to reject QR request.');
@@ -265,7 +265,7 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
       setActionSuccess(`Business request for "${requestToDelete.businessName}" deleted successfully.`);
       setRequestToDelete(null);
       setTimeout(() => setActionSuccess(null), 3500);
-      loadAdminData();
+      adminService.getStats(session.access_token).then((d) => setStats(d.stats)).catch(() => {});
     } catch (err) {
       alert(err.message || 'Failed to delete business request.');
     } finally {
@@ -291,7 +291,7 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
       setActionSuccess(`QR customization request for "${qrRequestToDelete.businessName}" deleted successfully.`);
       setQrRequestToDelete(null);
       setTimeout(() => setActionSuccess(null), 3500);
-      loadAdminData();
+      adminService.getStats(session.access_token).then((d) => setStats(d.stats)).catch(() => {});
     } catch (err) {
       alert(err.message || 'Failed to delete QR request.');
     } finally {

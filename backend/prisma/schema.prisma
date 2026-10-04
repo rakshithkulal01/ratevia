@@ -84,6 +84,7 @@ model Business {
   feedbacks              Feedback[]
   analyticsEvents        AnalyticsEvent[]
   dailyBusinessAnalytics DailyBusinessAnalytics[]
+  analyticsBatches       AnalyticsBatch[]
   businessRequest        BusinessRequest?
 
   @@index([ownerId])
@@ -294,5 +295,18 @@ model AdminAuditLog {
   @@index([targetAdminId])
   @@index([createdAt])
   @@map("admin_audit_logs")
+}
+
+model AnalyticsBatch {
+  id           String   @id @default(uuid())
+  batchId      String   @unique
+  businessId   String
+  business     Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sessionCount Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([businessId])
+  @@index([createdAt])
+  @@map("analytics_batches")
 }
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import { Power, Sparkles, ShieldCheck } from 'lucide-react';
+import { buildCustomerQRUrl, slugify } from '../../utils/qrBrandUtils';
 
 /**
  * BrandedQRCard
@@ -11,7 +12,7 @@ export const BrandedQRCard = React.forwardRef(
   (
     {
       business,
-      customerUrl,
+      customerUrl = '',
       config,
       isPaused = false,
       size = 240,
@@ -26,6 +27,9 @@ export const BrandedQRCard = React.forwardRef(
     const categoryName = config?.category?.displayName || business?.businessType || 'Local Business';
     const initials = config?.initials || 'RV';
     const accent = config?.accent;
+
+    // Ratevia QR destination URL
+    const targetUrl = customerUrl || buildCustomerQRUrl(business?.slug || slugify(businessName) || 'demo');
 
     return (
       <div
@@ -81,7 +85,7 @@ export const BrandedQRCard = React.forwardRef(
           <div className="relative p-3.5 sm:p-4 rounded-2xl bg-white border-2 border-slate-100 shadow-xs transition-transform duration-300 hover:scale-[1.01]">
             <QRCodeSVG
               id="ratevia-branded-qr-svg"
-              value={customerUrl || 'https://ratevia.com'}
+              value={targetUrl}
               size={size}
               level="H"
               fgColor={config?.style?.fgColor || '#0F172A'}
@@ -101,7 +105,7 @@ export const BrandedQRCard = React.forwardRef(
             {qrCanvasRef && (
               <div ref={qrCanvasRef} className="hidden" aria-hidden="true">
                 <QRCodeCanvas
-                  value={customerUrl || 'https://ratevia.com'}
+                  value={targetUrl}
                   size={1024}
                   level="H"
                   fgColor={config?.style?.fgColor || '#0F172A'}

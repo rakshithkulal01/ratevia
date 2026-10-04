@@ -25,7 +25,7 @@ router.get('/', authMiddleware, async (req, res, next) => {
     }
 
     // 1. Fetch DailyBusinessAnalytics rows and current live records
-    const [dailyRows, legacyFeedbacks, liveQrScans, liveEvents] = await Promise.all([
+    const [dailyRows, legacyFeedbacks] = await Promise.all([
       prisma.dailyBusinessAnalytics.findMany({
         where: { businessId: business.id },
         orderBy: { date: 'asc' },
@@ -40,13 +40,6 @@ router.get('/', authMiddleware, async (req, res, next) => {
           googleLinkClickedAt: true,
           reviewCopiedAt: true,
         },
-      }),
-      prisma.analyticsEvent.count({
-        where: { businessId: business.id, eventType: 'QR_SCANNED' },
-      }),
-      prisma.analyticsEvent.findMany({
-        where: { businessId: business.id },
-        select: { eventType: true, createdAt: true },
       }),
     ]);
 
@@ -117,11 +110,8 @@ router.get('/', authMiddleware, async (req, res, next) => {
         }
       });
 
-      totalQrScans = Math.max(liveQrScans, totalQrScans);
       totalReviewsCopied = legacyFeedbacks.filter((f) => f.reviewCopiedAt).length;
       totalGoogleClicks = legacyFeedbacks.filter((f) => f.googleLinkClickedAt).length;
-    } else {
-      totalQrScans = Math.max(liveQrScans, totalQrScans);
     }
 
     const ratingDistribution = [
@@ -222,6 +212,193 @@ router.get('/', authMiddleware, async (req, res, next) => {
       },
       accountStatus,
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Idempotency cache: Set of processed batchIds with expiration
+const processedBatches = new Map(); // batchId -> timestamp
+const BATCH_IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function isBatchDuplicate(batchId) {
+  if (!batchId) return false;
+  const now = Date.now();
+  // Evict expired entries when map grows
+  if (processedBatches.size > 20000) {
+    for (const [id, time] of processedBatches.entries()) {
+      if (now - time > BATCH_IDEMPOTENCY_TTL_MS) {
+        processedBatches.delete(id);
+      }
+    }
+  }
+  if (processedBatches.has(batchId)) {
+    return true;
+  }
+  processedBatches.set(batchId, now);
+  return false;
+}
+
+/**
+ * POST /api/analytics/batch
+ * High-performance, idempotent batch ingest endpoint for customer session analytics.
+ * Aggregates up to 25 customer sessions in memory and performs a single atomic upsert.
+ */
+router.post('/batch', async (req, res, next) => {
+  try {
+    const { batchId, businessSlug, sessions } = req.body || {};
+
+    if (!batchId || !businessSlug || !Array.isArray(sessions) || sessions.length === 0) {
+      return res.status(400).json({
+        error: 'ValidationError',
+        message: 'Missing required batch fields: batchId, businessSlug, and sessions array.',
+      });
+    }
+
+    // 1. Idempotency Check: Reject duplicate delivery (pagehide + visibilitychange or network retries)
+    if (isBatchDuplicate(batchId)) {
+      return res.status(200).json({ status: 'duplicate_ignored', batchId });
+    }
+
+    // 2. Validate Business Slug
+    const business = await prisma.business.findUnique({
+      where: { slug: businessSlug },
+      select: { id: true, isActive: true },
+    });
+
+    if (!business || !business.isActive) {
+      return res.status(404).json({
+        error: 'NotFound',
+        message: 'Business not found or inactive.',
+      });
+    }
+
+    // 3. In-memory aggregation across sessions in this batch
+    let totalQrScans = 0;
+    let totalFeedbackStarted = 0;
+    let totalReviewsGenerated = 0;
+    let totalReviewsCopied = 0;
+    let totalGoogleClicks = 0;
+    const ratingDeltas = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const positiveTopicDeltas = {};
+    const improvementTopicDeltas = {};
+
+    for (const session of sessions) {
+      if (session.scanned) totalQrScans++;
+      if (session.feedbackStarted) totalFeedbackStarted++;
+      if (session.reviewGenerated) totalReviewsGenerated++;
+      if (session.reviewCopied) totalReviewsCopied++;
+      if (session.googleClicked) totalGoogleClicks++;
+
+      const r = Number(session.rating);
+      if (r >= 1 && r <= 5) {
+        ratingDeltas[r]++;
+        const topics = Array.isArray(session.topics) ? session.topics : [];
+        for (const t of topics) {
+          const clean = typeof t === 'string' ? t.trim() : '';
+          if (!clean) continue;
+          if (r >= 4) {
+            positiveTopicDeltas[clean] = (positiveTopicDeltas[clean] || 0) + 1;
+          } else {
+            improvementTopicDeltas[clean] = (improvementTopicDeltas[clean] || 0) + 1;
+          }
+        }
+      }
+    }
+
+    // 4. Normalized date for daily aggregation
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    // 5. Execute batch insertion and metrics update inside a single atomic transaction
+    const transactionResult = await prisma.$transaction(async (tx) => {
+      // 5a. Persistent idempotency check using unique batchId constraint
+      try {
+        await tx.analyticsBatch.create({
+          data: {
+            batchId,
+            businessId: business.id,
+            sessionCount: sessions.length,
+          },
+        });
+      } catch (err) {
+        if (err.code === 'P2002') {
+          // Unique constraint violation: batch has already been processed!
+          return { duplicate: true };
+        }
+        throw err;
+      }
+
+      // 5b. Topic aggregation merge within the transaction
+      let positiveTopics = {};
+      let improvementTopics = {};
+
+      if (Object.keys(positiveTopicDeltas).length > 0 || Object.keys(improvementTopicDeltas).length > 0) {
+        const existing = await tx.dailyBusinessAnalytics.findUnique({
+          where: { businessId_date: { businessId: business.id, date: today } },
+          select: { positiveTopicCounts: true, improvementTopicCounts: true },
+        });
+
+        if (existing?.positiveTopicCounts && typeof existing.positiveTopicCounts === 'object') {
+          positiveTopics = { ...existing.positiveTopicCounts };
+        }
+        if (existing?.improvementTopicCounts && typeof existing.improvementTopicCounts === 'object') {
+          improvementTopics = { ...existing.improvementTopicCounts };
+        }
+
+        for (const [t, count] of Object.entries(positiveTopicDeltas)) {
+          positiveTopics[t] = (positiveTopics[t] || 0) + count;
+        }
+        for (const [t, count] of Object.entries(improvementTopicDeltas)) {
+          improvementTopics[t] = (improvementTopics[t] || 0) + count;
+        }
+      }
+
+      // 5c. Atomic upsert to DailyBusinessAnalytics within the transaction
+      await tx.dailyBusinessAnalytics.upsert({
+        where: {
+          businessId_date: { businessId: business.id, date: today },
+        },
+        create: {
+          businessId: business.id,
+          date: today,
+          qrScans: totalQrScans,
+          feedbackStarted: totalFeedbackStarted,
+          reviewsGenerated: totalReviewsGenerated,
+          reviewsCopied: totalReviewsCopied,
+          googleClicks: totalGoogleClicks,
+          rating1: ratingDeltas[1],
+          rating2: ratingDeltas[2],
+          rating3: ratingDeltas[3],
+          rating4: ratingDeltas[4],
+          rating5: ratingDeltas[5],
+          positiveTopicCounts: positiveTopics,
+          improvementTopicCounts: improvementTopics,
+        },
+        update: {
+          qrScans: { increment: totalQrScans },
+          feedbackStarted: { increment: totalFeedbackStarted },
+          reviewsGenerated: { increment: totalReviewsGenerated },
+          reviewsCopied: { increment: totalReviewsCopied },
+          googleClicks: { increment: totalGoogleClicks },
+          rating1: { increment: ratingDeltas[1] },
+          rating2: { increment: ratingDeltas[2] },
+          rating3: { increment: ratingDeltas[3] },
+          rating4: { increment: ratingDeltas[4] },
+          rating5: { increment: ratingDeltas[5] },
+          ...(Object.keys(positiveTopicDeltas).length > 0 ? { positiveTopicCounts: positiveTopics } : {}),
+          ...(Object.keys(improvementTopicDeltas).length > 0 ? { improvementTopicCounts: improvementTopics } : {}),
+        },
+      });
+
+      return { duplicate: false };
+    });
+
+    if (transactionResult.duplicate) {
+      return res.status(200).json({ status: 'duplicate_ignored', batchId });
+    }
+
+    return res.status(200).json({ success: true, processedSessions: sessions.length });
   } catch (error) {
     next(error);
   }

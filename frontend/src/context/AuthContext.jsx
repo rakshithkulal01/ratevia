@@ -10,45 +10,64 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const lastSyncedToken = useRef(null);
+  const syncPromiseRef = useRef(null);
 
-  // Synchronize authenticated user with Ratevia PostgreSQL backend
+  // Synchronize authenticated user with Ratevia PostgreSQL backend (deduplicated)
   const syncWithBackend = useCallback(async (currentSession) => {
-    if (!currentSession?.access_token) return null;
+    const token = currentSession?.access_token;
+    if (!token) return null;
 
-    try {
-      const response = await fetch(`${API_URL}/api/auth/sync`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${currentSession.access_token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Merge Supabase user with PostgreSQL DB user info (role, id, etc.)
-        // Ensure role strictly uses DB role, never Supabase's internal 'authenticated' string
-        const resolvedRole =
-          data.user?.role && data.user.role !== 'authenticated'
-            ? data.user.role
-            : 'BUSINESS_OWNER';
-
-        const mergedUser = {
-          ...currentSession.user,
-          ...data.user,
-          role: resolvedRole,
-        };
-        setUser(mergedUser);
-        return mergedUser;
-      } else {
-        const errData = await response.json().catch(() => ({}));
-        console.error('[AuthContext] Backend sync failed:', errData.message || response.statusText);
-      }
-    } catch (err) {
-      console.error('[AuthContext] Network error during backend user sync:', err.message);
+    // 1. If already synced with this exact token, return existing user without duplicate HTTP call
+    if (lastSyncedToken.current === token && user) {
+      return user;
     }
-    return null;
-  }, []);
+
+    // 2. If a sync request is already in-flight for this token, reuse the active promise
+    if (syncPromiseRef.current) {
+      return syncPromiseRef.current;
+    }
+
+    syncPromiseRef.current = (async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/auth/sync`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Merge Supabase user with PostgreSQL DB user info (role, id, etc.)
+          // Ensure role strictly uses DB role, never Supabase's internal 'authenticated' string
+          const resolvedRole =
+            data.user?.role && data.user.role !== 'authenticated'
+              ? data.user.role
+              : 'BUSINESS_OWNER';
+
+          const mergedUser = {
+            ...currentSession.user,
+            ...data.user,
+            role: resolvedRole,
+          };
+          lastSyncedToken.current = token;
+          setUser(mergedUser);
+          return mergedUser;
+        } else {
+          const errData = await response.json().catch(() => ({}));
+          console.error('[AuthContext] Backend sync failed:', errData.message || response.statusText);
+        }
+      } catch (err) {
+        console.error('[AuthContext] Network error during backend user sync:', err.message);
+      } finally {
+        syncPromiseRef.current = null;
+      }
+      return null;
+    })();
+
+    return syncPromiseRef.current;
+  }, [user]);
 
   useEffect(() => {
     if (!supabase) {

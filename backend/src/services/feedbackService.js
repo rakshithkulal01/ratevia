@@ -1,9 +1,5 @@
 import prisma from '../config/prisma.js';
-import {
-  recordDailyFeedbackAnalytics,
-  recordDailyEventAnalytics,
-  queueRawAnalyticsEvent,
-} from '../utils/analyticsHelper.js';
+import { recordDailyFeedbackAnalytics } from '../utils/analyticsHelper.js';
 
 /**
  * Service handling feedback submission, privacy retention, event logging, and history.
@@ -14,7 +10,7 @@ export const feedbackService = {
    * - 4–5★: Aggregate only in DailyBusinessAnalytics. Do NOT persist raw Feedback row.
    * - 1–3★: Persist raw Feedback row temporarily (max 30 days) for operational review.
    */
-  async createFeedback({ businessSlug, sessionId, rating, selectedTopics = [], customerMessage, generatedReview }) {
+  async createFeedback({ businessSlug, sessionId, rating, selectedTopics = [], customerMessage, generatedReview, scanned = true }) {
     // 1. Find business and check active status
     const business = await prisma.business.findUnique({
       where: { slug: businessSlug },
@@ -56,12 +52,13 @@ export const feedbackService = {
       throw err;
     }
 
-    // 3. Update Long-Term Aggregated Analytics (All ratings 1–5 contribute)
+    // 3. Update Long-Term Aggregated Analytics (All ratings 1–5 contribute, plus scan)
     await recordDailyFeedbackAnalytics(
       business.id,
       rating,
       selectedTopics,
-      Boolean(generatedReview)
+      Boolean(generatedReview),
+      Boolean(scanned)
     );
 
     let feedbackId = null;
@@ -84,30 +81,6 @@ export const feedbackService = {
       feedbackId = `transient-${business.id}-${Date.now()}`;
     }
 
-    // 5. Track operational AnalyticsEvents non-blockingly via batch queue
-    const now = new Date();
-    queueRawAnalyticsEvent({
-      businessId: business.id,
-      eventType: 'FEEDBACK_STARTED',
-      sessionId,
-      metadata: { rating, topicsCount: selectedTopics.length },
-      createdAt: now,
-    });
-    queueRawAnalyticsEvent({
-      businessId: business.id,
-      eventType: 'RATING_SELECTED',
-      sessionId,
-      metadata: { rating },
-      createdAt: new Date(now.getTime() + 10),
-    });
-    queueRawAnalyticsEvent({
-      businessId: business.id,
-      eventType: 'REVIEW_GENERATED',
-      sessionId,
-      metadata: { hasCustomReview: Boolean(generatedReview) },
-      createdAt: new Date(now.getTime() + 20),
-    });
-
     return {
       feedbackId,
       business: {
@@ -126,17 +99,6 @@ export const feedbackService = {
    */
   async recordReviewCopied(id, sessionId) {
     if (id.startsWith('transient-')) {
-      const businessId = id.slice(10, id.lastIndexOf('-'));
-
-      if (businessId) {
-        recordDailyEventAnalytics(businessId, 'REVIEW_COPIED');
-        queueRawAnalyticsEvent({
-          businessId,
-          eventType: 'REVIEW_COPIED',
-          sessionId: sessionId || null,
-        });
-      }
-
       return {
         feedbackId: id,
         reviewCopiedAt: new Date(),
@@ -184,14 +146,6 @@ export const feedbackService = {
       },
     });
 
-    recordDailyEventAnalytics(feedback.businessId, 'REVIEW_COPIED');
-    queueRawAnalyticsEvent({
-      businessId: feedback.businessId,
-      eventType: 'REVIEW_COPIED',
-      sessionId: sessionId || null,
-      metadata: { feedbackId: feedback.id, rating: feedback.rating },
-    });
-
     return {
       feedbackId: updatedFeedback.id,
       reviewCopiedAt: updatedFeedback.reviewCopiedAt,
@@ -213,13 +167,6 @@ export const feedbackService = {
           select: { googleReviewUrl: true },
         });
         googleReviewUrl = business?.googleReviewUrl || '';
-
-        recordDailyEventAnalytics(businessId, 'GOOGLE_LINK_CLICKED');
-        queueRawAnalyticsEvent({
-          businessId,
-          eventType: 'GOOGLE_LINK_CLICKED',
-          sessionId: sessionId || null,
-        });
       }
 
       return {
@@ -271,14 +218,6 @@ export const feedbackService = {
       data: {
         googleLinkClickedAt: feedback.googleLinkClickedAt || new Date(),
       },
-    });
-
-    recordDailyEventAnalytics(feedback.businessId, 'GOOGLE_LINK_CLICKED');
-    queueRawAnalyticsEvent({
-      businessId: feedback.businessId,
-      eventType: 'GOOGLE_LINK_CLICKED',
-      sessionId: sessionId || null,
-      metadata: { feedbackId: feedback.id, rating: feedback.rating },
     });
 
     return {

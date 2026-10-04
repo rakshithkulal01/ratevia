@@ -7,4 +7,5 @@ export const createFeedbackSchema = z.object({
   selectedTopics: z.array(z.string()).default([]),
   customerMessage: z.string().max(2000).optional().nullable(),
   generatedReview: z.string().max(4000).optional().nullable(),
+  scanned: z.boolean().optional().default(true),
 });
