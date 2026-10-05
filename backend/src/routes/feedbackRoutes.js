@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authMiddleware } from '../middleware/authMiddleware.js';
 import feedbackService from '../services/feedbackService.js';
 import { createFeedbackSchema } from '../validators/feedbackValidators.js';
+import { feedbackLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
@@ -12,7 +13,7 @@ const router = Router();
  * - 4–5★: Aggregate only in DailyBusinessAnalytics. Do NOT persist raw Feedback row.
  * - 1–3★: Persist raw Feedback row temporarily (max 30 days) for operational review.
  */
-router.post('/', async (req, res, next) => {
+router.post('/', feedbackLimiter, async (req, res, next) => {
   try {
     const parseResult = createFeedbackSchema.safeParse(req.body);
     if (!parseResult.success) {

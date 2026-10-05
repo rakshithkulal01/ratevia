@@ -72,7 +72,7 @@ export const feedbackService = {
           rating,
           selectedTopics,
           customerMessage: customerMessage?.trim() || null,
-          generatedReview: generatedReview?.trim() || null,
+          generatedReview: generatedReview ? generatedReview.trim().slice(0, 200) : null,
         },
       });
       feedbackId = feedback.id;

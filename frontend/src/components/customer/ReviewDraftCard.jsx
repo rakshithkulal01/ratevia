@@ -24,6 +24,10 @@ export const ReviewDraftCard = ({
   if (!rating || !generatedReview) return null;
 
   const isPositive = rating >= 4;
+  const currentLength = (generatedReview || '').length;
+  const isOverLimit = currentLength > 200;
+  const isNearLimit = currentLength >= 190 && !isOverLimit;
+  const isInvalid = isOverLimit || currentLength === 0;
 
   return (
     <Card className="p-6 space-y-4 border-accent/30 bg-accent/5">
@@ -48,14 +52,39 @@ export const ReviewDraftCard = ({
       <div className="space-y-1">
         <textarea
           rows={4}
+          maxLength={200}
           value={generatedReview}
           onChange={onChangeReview}
-          className="w-full p-3 text-xs rounded-md border border-border bg-white text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-accent leading-relaxed"
+          className={`w-full p-3 text-xs rounded-md border bg-white text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 leading-relaxed ${
+            isOverLimit
+              ? 'border-red-500 focus:ring-red-500'
+              : 'border-border focus:ring-accent'
+          }`}
           placeholder="Your review draft..."
         />
-        {hasCustomEdits && (
-          <p className="text-[10px] text-muted-foreground italic">
-            You've edited the draft. Your customized text will be preserved.
+        <div className="flex items-center justify-between text-xs pt-0.5">
+          {hasCustomEdits ? (
+            <span className="text-[10px] text-muted-foreground italic">
+              You've edited the draft. Your customized text will be preserved.
+            </span>
+          ) : (
+            <span />
+          )}
+          <span
+            className={`font-mono text-[11px] font-medium ml-auto ${
+              isOverLimit
+                ? 'text-red-600 font-bold'
+                : isNearLimit
+                ? 'text-amber-600'
+                : 'text-muted-foreground'
+            }`}
+          >
+            {currentLength}/200
+          </span>
+        </div>
+        {isOverLimit && (
+          <p className="text-[11px] text-red-600 font-medium">
+            Review text cannot exceed 200 characters. Please shorten your review to continue.
           </p>
         )}
       </div>
@@ -85,8 +114,8 @@ export const ReviewDraftCard = ({
           variant="primary"
           size="md"
           onClick={onContinueGoogle}
-          disabled={isNavigatingGoogle}
-          className="w-full justify-center rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm transition-all"
+          disabled={isNavigatingGoogle || isInvalid}
+          className="w-full justify-center rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isNavigatingGoogle ? (
             <>

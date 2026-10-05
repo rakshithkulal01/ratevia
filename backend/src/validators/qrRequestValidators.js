@@ -49,18 +49,18 @@ export const createPublicQRRequestSchema = z.object({
     }, 'URL must use http or https protocol'),
   qrConfig: z
     .object({
-      selectedAccent: z.string().optional().default('ratevia-blue'),
-      selectedStyle: z.string().optional().default('classic'),
-      selectedMessage: z.string().max(200).optional(),
-      initials: z.string().max(10).optional(),
-      tagline: z.string().max(100).optional(),
-      badgeType: z.string().optional(),
+      selectedAccent: z.enum(ALLOWED_ACCENTS).optional().default('ratevia-blue'),
+      selectedStyle: z.enum(ALLOWED_STYLES).optional().default('classic'),
+      selectedMessage: z.string().trim().max(200).optional().nullable(),
+      initials: z.string().trim().max(10).optional().nullable(),
+      tagline: z.string().trim().max(100).optional().nullable(),
+      badgeType: z.enum(['sparkle', 'initials', 'none']).optional().default('sparkle'),
     })
-    .passthrough()
+    .strict()
     .optional()
     .default({}),
-  stickerImage: z.string().optional(),
-  stickerImageUrl: z.string().optional(),
+  stickerImage: z.string().max(3 * 1024 * 1024, 'Sticker image exceeds maximum allowed size').optional(),
+  stickerImageUrl: z.string().max(1000).optional().nullable(),
 });
 
 export const updatePriceSchema = z.object({

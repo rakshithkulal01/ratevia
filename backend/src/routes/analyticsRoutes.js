@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import prisma from '../config/prisma.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
+import { analyticsBatchLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
@@ -244,14 +245,31 @@ function isBatchDuplicate(batchId) {
  * High-performance, idempotent batch ingest endpoint for customer session analytics.
  * Aggregates up to 25 customer sessions in memory and performs a single atomic upsert.
  */
-router.post('/batch', async (req, res, next) => {
+router.post('/batch', analyticsBatchLimiter, async (req, res, next) => {
   try {
     const { batchId, businessSlug, sessions } = req.body || {};
 
-    if (!batchId || !businessSlug || !Array.isArray(sessions) || sessions.length === 0) {
+    if (
+      !batchId ||
+      typeof batchId !== 'string' ||
+      batchId.length > 100 ||
+      !businessSlug ||
+      typeof businessSlug !== 'string' ||
+      businessSlug.length > 100 ||
+      !Array.isArray(sessions) ||
+      sessions.length === 0
+    ) {
       return res.status(400).json({
         error: 'ValidationError',
-        message: 'Missing required batch fields: batchId, businessSlug, and sessions array.',
+        message: 'Missing or invalid required batch fields: batchId, businessSlug, and sessions array.',
+      });
+    }
+
+    // Enforce strict limit: MAX 100 sessions per batch
+    if (sessions.length > 100) {
+      return res.status(400).json({
+        error: 'ValidationError',
+        message: 'Batch size exceeds maximum limit of 100 sessions.',
       });
     }
 
@@ -284,6 +302,8 @@ router.post('/batch', async (req, res, next) => {
     const improvementTopicDeltas = {};
 
     for (const session of sessions) {
+      if (!session || typeof session !== 'object') continue;
+
       if (session.scanned) totalQrScans++;
       if (session.feedbackStarted) totalFeedbackStarted++;
       if (session.reviewGenerated) totalReviewsGenerated++;
@@ -293,9 +313,9 @@ router.post('/batch', async (req, res, next) => {
       const r = Number(session.rating);
       if (r >= 1 && r <= 5) {
         ratingDeltas[r]++;
-        const topics = Array.isArray(session.topics) ? session.topics : [];
+        const topics = Array.isArray(session.topics) ? session.topics.slice(0, 20) : [];
         for (const t of topics) {
-          const clean = typeof t === 'string' ? t.trim() : '';
+          const clean = typeof t === 'string' ? t.trim().slice(0, 50) : '';
           if (!clean) continue;
           if (r >= 4) {
             positiveTopicDeltas[clean] = (positiveTopicDeltas[clean] || 0) + 1;

@@ -9,7 +9,7 @@ import { AlertCircle, Clock, Loader2, MessageSquare } from 'lucide-react';
 import { qrService } from '../../services/qrService';
 import { feedbackService } from '../../services/feedbackService';
 import { getSessionId } from '../../utils/session';
-import { generateReviewText } from '../../utils/reviewEngine';
+import { generateReviewText, safeTrimToLimit } from '../../utils/reviewEngine';
 import { getCategoryConfig } from '../../config/businessCategories';
 import { recordSession } from '../../utils/analyticsQueue';
 
@@ -176,12 +176,15 @@ export const CustomerRoutePage = () => {
     setCopyError(null);
   };
 
-  // Review Edit Handler
+  // Review Edit Handler - Hard capped at 200 characters
   const handleReviewChange = (e) => {
-    setGeneratedReview(e.target.value);
+    const rawVal = e.target.value || '';
+    const cappedVal = rawVal.slice(0, 200);
+    setGeneratedReview(cappedVal);
     setHasCustomEdits(true);
     setCopySuccess(false);
     setCopyError(null);
+    setActionError(null);
   };
 
   // Variation Cycle Handler
@@ -190,13 +193,17 @@ export const CustomerRoutePage = () => {
     setHasCustomEdits(false);
     setCopySuccess(false);
     setCopyError(null);
+    setActionError(null);
   };
 
   // Submit Constructive 1–3★ Feedback to Backend (30-day retention, combines scan analytics)
-  const submitFeedbackPayload = async () => {
+  const submitFeedbackPayload = async (overrideReviewText) => {
     if (!business || rating === 0) return null;
     setIsSubmitting(true);
     setActionError(null);
+
+    const textToSubmit = (overrideReviewText !== undefined ? overrideReviewText : generatedReview || '').trim();
+    const safeReview = textToSubmit.length > 200 ? safeTrimToLimit(textToSubmit, 200) : textToSubmit;
 
     try {
       const data = await feedbackService.submitFeedback({
@@ -205,7 +212,7 @@ export const CustomerRoutePage = () => {
         rating,
         selectedTopics,
         customerMessage: customerMessage.trim() || null,
-        generatedReview: generatedReview.trim() || null,
+        generatedReview: safeReview || null,
         scanned: true,
       });
 
@@ -231,9 +238,20 @@ export const CustomerRoutePage = () => {
     if (isNavigatingGoogle) return;
 
     // Empty review protection
-    const reviewTextToCopy = (generatedReview || '').trim();
+    let reviewTextToCopy = (generatedReview || '').trim();
     if (!reviewTextToCopy) {
       setActionError('Review text is empty. Please enter or generate a review before continuing.');
+      return;
+    }
+
+    // Strict 200-character enforcement & safe handling before copy / navigation
+    if (reviewTextToCopy.length > 200) {
+      reviewTextToCopy = safeTrimToLimit(reviewTextToCopy, 200);
+      setGeneratedReview(reviewTextToCopy);
+    }
+
+    if (reviewTextToCopy.length > 200 || !reviewTextToCopy) {
+      setActionError('Review text must be 200 characters or fewer.');
       return;
     }
 
@@ -244,7 +262,7 @@ export const CustomerRoutePage = () => {
     if (clipboardFailedOnce) {
       try {
         if (rating <= 3 && !feedbackId) {
-          await submitFeedbackPayload();
+          await submitFeedbackPayload(reviewTextToCopy);
         }
         recordSession(businessSlug, {
           sessionId,
@@ -301,7 +319,7 @@ export const CustomerRoutePage = () => {
       try {
         // 2. For constructive 1-3★ feedback, persist to backend for business operational review
         if (rating <= 3 && !feedbackId) {
-          await submitFeedbackPayload();
+          await submitFeedbackPayload(reviewTextToCopy);
         }
 
         // 3. Record completed session in client-side analytics queue (0 per-event HTTP calls)

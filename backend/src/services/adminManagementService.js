@@ -98,7 +98,9 @@ class AdminManagementService {
       where: { id },
       include: {
         permissions: true,
-        user: true,
+        user: {
+          select: { id: true, email: true, name: true, role: true },
+        },
       },
     });
 

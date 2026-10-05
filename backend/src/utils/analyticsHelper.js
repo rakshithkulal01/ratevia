@@ -199,13 +199,6 @@ export async function flushPendingAnalytics() {
   await activeFlushPromise;
 }
 
-/**
- * Enqueue a raw event (Deprecated - no-op to eliminate redundant DB writes and storage overhead).
- * Preserved for backwards compatibility with any remaining call sites.
- */
-export function queueRawAnalyticsEvent() {
-  // No-op: Raw event creation has been discontinued in favor of DailyBusinessAnalytics batch aggregation.
-}
 
 /**
  * Record event counter (QR_SCANNED, REVIEW_COPIED, GOOGLE_LINK_CLICKED).

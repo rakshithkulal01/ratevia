@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import businessRequestService from '../services/businessRequestService.js';
 import { createBusinessRequestSchema } from '../validators/businessRequestValidators.js';
+import { businessRequestLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
@@ -8,7 +9,7 @@ const router = Router();
  * POST /api/business-requests
  * Public endpoint for businesses submitting a registration request to Ratevia.
  */
-router.post('/', async (req, res, next) => {
+router.post('/', businessRequestLimiter, async (req, res, next) => {
   try {
     const parseResult = createBusinessRequestSchema.safeParse(req.body);
     if (!parseResult.success) {

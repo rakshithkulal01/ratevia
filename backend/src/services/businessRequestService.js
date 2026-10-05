@@ -69,7 +69,7 @@ export const businessRequestService = {
     });
 
     console.log(
-      `[BusinessRequest] New registration request received from "${businessName}" (${normalizedPhone}, ${normalizedEmail})`
+      `[BusinessRequest] New registration request received from "${businessName}" [ID: ${businessRequest.id}]`
     );
 
     return {

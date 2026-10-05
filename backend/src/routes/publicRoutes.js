@@ -2,6 +2,7 @@ import { Router } from 'express';
 import pricingService from '../services/pricingService.js';
 import qrRequestService from '../services/qrRequestService.js';
 import { createPublicQRRequestSchema } from '../validators/qrRequestValidators.js';
+import { qrRequestLimiter } from '../middleware/rateLimiter.js';
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.get('/settings/price', async (req, res, next) => {
  * POST /api/public/qr-requests
  * Public submission of custom QR design request. Captures price snapshot.
  */
-router.post('/qr-requests', async (req, res, next) => {
+router.post('/qr-requests', qrRequestLimiter, async (req, res, next) => {
   try {
     const parseResult = createPublicQRRequestSchema.safeParse(req.body);
     if (!parseResult.success) {

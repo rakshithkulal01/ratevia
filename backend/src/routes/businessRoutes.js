@@ -4,6 +4,7 @@ import { authMiddleware } from '../middleware/authMiddleware.js';
 import prisma from '../config/prisma.js';
 import { generateUniqueBusinessSlug } from '../utils/slug.js';
 import { SUPPORTED_CATEGORIES } from '../config/businessCategories.js';
+import { ensureDbUser } from '../utils/ensureDbUser.js';
 
 const router = Router();
 
@@ -50,31 +51,6 @@ const updateBusinessSchema = z.object({
     .optional(),
 });
 
-// Helper: Ensure user exists in local PostgreSQL database
-const ensureDbUser = async (req) => {
-  if (req.user?.id) return req.user;
-
-  // If user hasn't been synced yet, auto-sync using supabaseUserId
-  let dbUser = await prisma.user.findUnique({
-    where: { supabaseUserId: req.user.supabaseUserId },
-  });
-
-  if (!dbUser) {
-    const name = req.user.metadata?.name || req.user.metadata?.full_name || null;
-    dbUser = await prisma.user.create({
-      data: {
-        supabaseUserId: req.user.supabaseUserId,
-        email: req.user.email,
-        name,
-        role: 'BUSINESS_OWNER',
-      },
-    });
-  }
-
-  req.user.id = dbUser.id;
-  return req.user;
-};
-
 /**
  * POST /api/business
  * Create a new business profile with 20-day TRIAL subscription and active QRCode
@@ -88,7 +64,7 @@ router.post('/', authMiddleware, async (req, res, next) => {
       return res.status(403).json({
         error: 'AdminProvisioningRequired',
         message:
-          'Public self-service business creation is disabled. Ratevia businesses are provisioned manually by the Ratevia administration after ₹1,000 purchase. Please contact our team.',
+          'Public self-service business creation is disabled. Ratevia businesses are provisioned manually by the Ratevia administration. Please contact our team.',
       });
     }
 

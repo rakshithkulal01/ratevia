@@ -4,31 +4,10 @@ import prisma from '../config/prisma.js';
 import { env } from '../config/env.js';
 import { getCustomerReviewUrl } from '../utils/url.js';
 
+import { publicQrLimiter } from '../middleware/rateLimiter.js';
+import { ensureDbUser } from '../utils/ensureDbUser.js';
+
 const router = Router();
-
-// Helper: Ensure user exists in local PostgreSQL database
-const ensureDbUser = async (req) => {
-  if (req.user?.id) return req.user;
-
-  let dbUser = await prisma.user.findUnique({
-    where: { supabaseUserId: req.user.supabaseUserId },
-  });
-
-  if (!dbUser) {
-    const name = req.user.metadata?.name || req.user.metadata?.full_name || null;
-    dbUser = await prisma.user.create({
-      data: {
-        supabaseUserId: req.user.supabaseUserId,
-        email: req.user.email,
-        name,
-        role: 'BUSINESS_OWNER',
-      },
-    });
-  }
-
-  req.user.id = dbUser.id;
-  return req.user;
-};
 
 /**
  * GET /api/qr
@@ -187,7 +166,7 @@ router.patch('/toggle', authMiddleware, async (req, res, next) => {
  * GET /api/qr/public/:businessSlug
  * Public endpoint when customer scans the QR code at /r/:businessSlug
  */
-router.get('/public/:businessSlug', async (req, res, next) => {
+router.get('/public/:businessSlug', publicQrLimiter, async (req, res, next) => {
   try {
     const { businessSlug } = req.params;
 
@@ -277,7 +256,6 @@ router.get('/public/:businessSlug', async (req, res, next) => {
 
     return res.status(200).json({
       business: {
-        id: business.id,
         name: business.name,
         businessType: business.businessType,
         category: business.businessType,

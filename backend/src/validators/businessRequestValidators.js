@@ -18,12 +18,14 @@ export const createBusinessRequestSchema = z.object({
   phoneNumber: z
     .string({ required_error: 'Phone number is required' })
     .trim()
-    .min(5, 'Phone number is required'),
+    .min(5, 'Phone number must be at least 5 digits')
+    .max(20, 'Phone number cannot exceed 20 characters'),
   countryCode: z.string().trim().optional().default('+91'),
   email: z
     .string({ required_error: 'Email address is required' })
     .trim()
-    .email('Please provide a valid email address'),
+    .email('Please provide a valid email address')
+    .max(150, 'Email cannot exceed 150 characters'),
   city: z
     .string({ required_error: 'City / Location is required' })
     .trim()

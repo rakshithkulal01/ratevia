@@ -103,7 +103,50 @@ const CONSTRUCTIVE_TOPIC_PHRASES = {
 };
 
 /**
+ * Safely enforces a hard maximum length limit (default 200 characters)
+ * without awkwardly chopping words or sentences when possible.
+ *
+ * @param {string} text - Review text
+ * @param {number} limit - Maximum allowed character length (default 200)
+ * @returns {string} Safe review text guaranteed to be <= limit characters
+ */
+export function safeTrimToLimit(text, limit = 200) {
+  if (!text || typeof text !== 'string') return '';
+  const trimmed = text.trim();
+  if (trimmed.length <= limit) return trimmed;
+
+  // Initial slice to limit
+  let sub = trimmed.slice(0, limit);
+  // Clean up any broken surrogate pair at the boundary
+  if (/[\uD800-\uDBFF]$/.test(sub)) {
+    sub = sub.slice(0, -1);
+  }
+
+  // 1. Look for last complete sentence (. ! ?) within limit
+  const sentenceMatch = sub.match(/.*[.!?](?=\s|$)/);
+  if (sentenceMatch && sentenceMatch[0].length >= 30) {
+    return sentenceMatch[0].trim();
+  }
+
+  // 2. If no complete sentence >= 30 chars, cut cleanly at last word boundary
+  const lastSpace = sub.lastIndexOf(' ');
+  if (lastSpace > 20) {
+    const cleanWord = sub.slice(0, lastSpace).replace(/[,;:\-\s]+$/, '');
+    const withPeriod = `${cleanWord}.`;
+    if (withPeriod.length <= limit) {
+      return withPeriod;
+    }
+    return cleanWord.slice(0, limit);
+  }
+
+  // 3. Absolute fallback: hard slice at limit
+  return sub.slice(0, limit);
+}
+
+/**
  * Generate authentic, category-aware review text based on rating, business category, selected topics, and customer message.
+ * Strictly guarantees that returned review text never exceeds 200 characters.
+ *
  * @param {Object} params
  * @param {string} params.businessCategory - One of the 11 supported categories
  * @param {string} params.businessType - Alias for businessCategory
@@ -112,7 +155,7 @@ const CONSTRUCTIVE_TOPIC_PHRASES = {
  * @param {string[]} params.selectedTopics - Array of topic names
  * @param {string} params.customerMessage - Optional written customer notes
  * @param {number} params.variationIndex - Counter for cycling phrasing on regenerate
- * @returns {string} Generated review draft
+ * @returns {string} Generated review draft (<= 200 characters)
  */
 export function generateReviewText({
   businessCategory,
@@ -129,25 +172,25 @@ export function generateReviewText({
   const trimmedMessage = (customerMessage || '').trim();
   const v = Math.abs(variationIndex) % 3;
 
-  if (isPositive) {
-    return generatePositiveReview({
-      categoryConfig,
-      businessName,
-      rating,
-      selectedTopics,
-      customerMessage: trimmedMessage,
-      variant: v,
-    });
-  } else {
-    return generateConstructiveReview({
-      categoryConfig,
-      businessName,
-      rating,
-      selectedTopics,
-      customerMessage: trimmedMessage,
-      variant: v,
-    });
-  }
+  const rawReview = isPositive
+    ? generatePositiveReview({
+        categoryConfig,
+        businessName,
+        rating,
+        selectedTopics,
+        customerMessage: trimmedMessage,
+        variant: v,
+      })
+    : generateConstructiveReview({
+        categoryConfig,
+        businessName,
+        rating,
+        selectedTopics,
+        customerMessage: trimmedMessage,
+        variant: v,
+      });
+
+  return safeTrimToLimit(rawReview, 200);
 }
 
 function generatePositiveReview({ categoryConfig, businessName, rating, selectedTopics, customerMessage, variant }) {
@@ -158,95 +201,170 @@ function generatePositiveReview({ categoryConfig, businessName, rating, selected
   ];
 
   const outro5 = [
-    'I had a wonderful experience and will definitely be coming back.',
-    'Highly recommended for anyone looking for quality service and great care.',
-    'Thanks to the entire team for an outstanding experience!',
+    'Will definitely be coming back!',
+    'Highly recommended!',
+    'Thanks to the team for great service!',
   ];
 
   const outro4 = [
-    'Overall a very good experience and I look forward to returning.',
-    'Solid service overall and happy to recommend them.',
-    'A great local business that I would gladly visit again.',
+    'Solid experience overall, happy to return.',
+    'Good service, glad to recommend them.',
+    'A great local spot I would visit again.',
   ];
 
-  const parts = [];
-  parts.push(intros[variant]);
+  const intro = intros[variant];
+  const outro = rating === 5 ? outro5[variant] : outro4[variant];
+  const userNote = customerMessage
+    ? (customerMessage.endsWith('.') || customerMessage.endsWith('!') || customerMessage.endsWith('?')
+        ? customerMessage
+        : `${customerMessage}.`)
+    : '';
 
-  // If customer provided a message, lead with or incorporate it naturally
-  if (customerMessage) {
-    parts.push(customerMessage.endsWith('.') ? customerMessage : `${customerMessage}.`);
-  }
-
-  // Incorporate selected positive topics
+  let topicSentence = '';
   if (selectedTopics.length > 0) {
     const topicPhrases = selectedTopics.map((topic) => {
       const phrases = POSITIVE_TOPIC_PHRASES[topic] || [`${topic.toLowerCase()} was great`];
       return phrases[variant % phrases.length];
     });
 
-    if (topicPhrases.length === 1) {
-      const singleSentences = [
-        `In particular, ${topicPhrases[0]}.`,
-        `Special shoutout because ${topicPhrases[0]}.`,
-        `I especially appreciated that ${topicPhrases[0]}.`,
-      ];
-      parts.push(singleSentences[variant]);
-    } else if (topicPhrases.length === 2) {
-      parts.push(`Particularly, ${topicPhrases[0]}, and ${topicPhrases[1]}.`);
+    if (userNote) {
+      if (selectedTopics.length === 1) {
+        const singlePrefixes = ['In particular,', 'Special shoutout:', 'Appreciated that'];
+        topicSentence = `${singlePrefixes[variant]} ${topicPhrases[0]}.`;
+      } else {
+        const topicList = selectedTopics.slice(0, 3).map((t) => t.toLowerCase()).join(', ');
+        topicSentence = `Loved the ${topicList}.`;
+      }
     } else {
-      const head = topicPhrases.slice(0, -1).join(', ');
-      const tail = topicPhrases[topicPhrases.length - 1];
-      parts.push(`Among the highlights: ${head}, and ${tail}.`);
+      if (topicPhrases.length === 1) {
+        const singleSentences = [
+          `In particular, ${topicPhrases[0]}.`,
+          `Special shoutout because ${topicPhrases[0]}.`,
+          `I especially appreciated that ${topicPhrases[0]}.`,
+        ];
+        topicSentence = singleSentences[variant];
+      } else if (topicPhrases.length === 2) {
+        topicSentence = `Particularly, ${topicPhrases[0]}, and ${topicPhrases[1]}.`;
+      } else {
+        topicSentence = `Highlights included ${topicPhrases[0]}, and ${topicPhrases[1]}.`;
+      }
     }
   }
 
-  parts.push(rating === 5 ? outro5[variant] : outro4[variant]);
+  // Priority-based sentence candidate assembly to stay naturally <= 200 characters
+  const candidates = [];
+  if (userNote && topicSentence) {
+    candidates.push([intro, userNote, topicSentence, outro]);
+    candidates.push([intro, userNote, outro]);
+    candidates.push([intro, userNote, topicSentence]);
+    candidates.push([intro, userNote]);
+    candidates.push([userNote, outro]);
+    candidates.push([userNote]);
+  } else if (userNote) {
+    candidates.push([intro, userNote, outro]);
+    candidates.push([intro, userNote]);
+    candidates.push([userNote, outro]);
+    candidates.push([userNote]);
+  } else if (topicSentence) {
+    candidates.push([intro, topicSentence, outro]);
+    candidates.push([intro, topicSentence]);
+    candidates.push([intro, outro]);
+    candidates.push([intro]);
+  } else {
+    candidates.push([intro, outro]);
+    candidates.push([intro]);
+  }
 
-  return parts.join(' ');
+  for (const cand of candidates) {
+    const text = cand.filter(Boolean).join(' ').trim();
+    if (text.length <= 200) {
+      return text;
+    }
+  }
+
+  const defaultText = candidates[0].filter(Boolean).join(' ').trim();
+  return safeTrimToLimit(defaultText, 200);
 }
 
 function generateConstructiveReview({ categoryConfig, businessName, rating, selectedTopics, customerMessage, variant }) {
   const intros = [
-    `Sharing some honest feedback regarding my recent experience at ${businessName}.`,
-    `Unfortunately, my recent visit to ${businessName} was not quite what I was hoping for.`,
-    `My recent experience at ${businessName} was a bit disappointing.`,
+    `Sharing honest feedback for ${businessName}.`,
+    `My recent visit to ${businessName} fell short.`,
+    `Disappointed with my visit to ${businessName}.`,
   ];
 
   const outros = [
-    'I hope this feedback is helpful for making improvements moving forward.',
-    'Sharing this constructively with the hope that the team can look into these points.',
-    'With a few adjustments, the overall experience could be much better.',
+    'Hope this helps the team improve.',
+    'Sharing this to help future visits.',
+    'With a few adjustments, it could be much better.',
   ];
 
-  const parts = [];
-  parts.push(intros[variant]);
+  const intro = intros[variant];
+  const outro = outros[variant];
+  const userNote = customerMessage
+    ? (customerMessage.endsWith('.') || customerMessage.endsWith('!') || customerMessage.endsWith('?')
+        ? customerMessage
+        : `${customerMessage}.`)
+    : '';
 
-  // Incorporate customer message if provided
-  if (customerMessage) {
-    parts.push(customerMessage.endsWith('.') ? customerMessage : `${customerMessage}.`);
-  }
-
-  // Incorporate selected constructive topics
+  let topicSentence = '';
   if (selectedTopics.length > 0) {
     const topicPhrases = selectedTopics.map((topic) => {
       const phrases = CONSTRUCTIVE_TOPIC_PHRASES[topic] || [`${topic.toLowerCase()} needs attention`];
       return phrases[variant % phrases.length];
     });
 
-    if (topicPhrases.length === 1) {
-      parts.push(`The main area noticed was that ${topicPhrases[0]}.`);
-    } else if (topicPhrases.length === 2) {
-      parts.push(`In particular, ${topicPhrases[0]}, and ${topicPhrases[1]}.`);
+    if (userNote) {
+      if (selectedTopics.length === 1) {
+        topicSentence = `Specifically, ${topicPhrases[0]}.`;
+      } else {
+        const topicList = selectedTopics.slice(0, 3).map((t) => t.toLowerCase()).join(', ');
+        topicSentence = `Areas noticed: ${topicList}.`;
+      }
     } else {
-      const head = topicPhrases.slice(0, -1).join(', ');
-      const tail = topicPhrases[topicPhrases.length - 1];
-      parts.push(`The areas that stood out were: ${head}, and ${tail}.`);
+      if (topicPhrases.length === 1) {
+        topicSentence = `The main area noticed was that ${topicPhrases[0]}.`;
+      } else if (topicPhrases.length === 2) {
+        topicSentence = `In particular, ${topicPhrases[0]}, and ${topicPhrases[1]}.`;
+      } else {
+        topicSentence = `Areas that stood out were: ${topicPhrases[0]}, and ${topicPhrases[1]}.`;
+      }
     }
   }
 
-  parts.push(outros[variant]);
+  // Priority-based sentence candidate assembly to stay naturally <= 200 characters
+  const candidates = [];
+  if (userNote && topicSentence) {
+    candidates.push([intro, userNote, topicSentence, outro]);
+    candidates.push([intro, userNote, outro]);
+    candidates.push([intro, userNote, topicSentence]);
+    candidates.push([intro, userNote]);
+    candidates.push([userNote, outro]);
+    candidates.push([userNote]);
+  } else if (userNote) {
+    candidates.push([intro, userNote, outro]);
+    candidates.push([intro, userNote]);
+    candidates.push([userNote, outro]);
+    candidates.push([userNote]);
+  } else if (topicSentence) {
+    candidates.push([intro, topicSentence, outro]);
+    candidates.push([intro, topicSentence]);
+    candidates.push([intro, outro]);
+    candidates.push([intro]);
+  } else {
+    candidates.push([intro, outro]);
+    candidates.push([intro]);
+  }
 
-  return parts.join(' ');
+  for (const cand of candidates) {
+    const text = cand.filter(Boolean).join(' ').trim();
+    if (text.length <= 200) {
+      return text;
+    }
+  }
+
+  const defaultText = candidates[0].filter(Boolean).join(' ').trim();
+  return safeTrimToLimit(defaultText, 200);
 }
 
 export const generateDeterministicReview = generateReviewText;
