@@ -1,0 +1,26 @@
+name = "ratevia"
+main = "backend/src/worker.js"
+compatibility_date = "2026-08-04"
+compatibility_flags = [
+  "nodejs_compat_v2",
+  "enable_nodejs_http_server_modules"
+]
+
+[build]
+command = "npm --prefix frontend run build"
+
+[assets]
+directory = "./frontend/dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[triggers]
+crons = ["0 0 * * *"]
+
+[vars]
+NODE_ENV = "production"
+PORT = "8080"
+
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "3b06ad7c742548b3a74f0cd5ec245989"

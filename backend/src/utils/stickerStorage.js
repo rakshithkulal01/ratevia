@@ -3,9 +3,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { getSupabaseAdmin } from '../config/supabase.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const UPLOADS_DIR = path.join(__dirname, '../../uploads/stickers');
+const __filename = (typeof import.meta.url === 'string' && import.meta.url.startsWith('file:')) ? fileURLToPath(import.meta.url) : '';
+const __dirname = __filename ? path.dirname(__filename) : process.cwd();
+const UPLOADS_DIR = path.join(__dirname, 'uploads/stickers');
 
 /**
  * Uploads or stores a base64 rendered sticker PNG for a business request.

@@ -142,7 +142,6 @@ router.get('/', authMiddleware, async (req, res, next) => {
     const business = await prisma.business.findFirst({
       where: {
         ownerId: req.user.id,
-        isActive: true,
       },
       include: {
         subscription: true,
@@ -188,7 +187,6 @@ router.patch('/', authMiddleware, async (req, res, next) => {
     const business = await prisma.business.findFirst({
       where: {
         ownerId: req.user.id,
-        isActive: true,
       },
     });
 

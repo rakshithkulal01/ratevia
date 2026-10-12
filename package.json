@@ -1,4 +1,13 @@
 {
+  "name": "ratevia",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "npm --prefix frontend run build",
+    "deploy": "wrangler deploy",
+    "dev:worker": "wrangler dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev"
+  },
   "dependencies": {
     "three": "^0.186.1"
   }

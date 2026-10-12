@@ -1,0 +1,50 @@
+name: Deploy to Cloudflare Workers
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-ratevia
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Build & Deploy Ratevia Worker
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies (Root, Frontend, Backend)
+        run: |
+          npm install
+          npm --prefix frontend install
+          npm --prefix backend install
+
+      - name: Generate Prisma Client
+        run: npm --prefix backend run generate
+
+      - name: Build Frontend Application
+        run: npm --prefix frontend run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://ewndrdmywdtcryvadvbx.supabase.co' }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_FibNqT8JLd-mNHyR04AJ1Q_PpKw3APY' }}
+          VITE_API_URL: "https://ratevia.ratevia.workers.dev"
+          VITE_FRONTEND_URL: "https://ratevia.ratevia.workers.dev"
+
+      - name: Deploy Full-Stack Worker to Cloudflare
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || '3445c6f7330a7c6b89a18267f1557724' }}
+          command: deploy

@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { DashboardLayout } from '../../components/dashboard/DashboardLayout';
+import React, { useState } from 'react';
+import { useDashboardData } from '../../context/DashboardContext';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -19,54 +18,34 @@ import {
   Clock,
 } from 'lucide-react';
 
-import { feedbackService } from '../../services/feedbackService';
-
 export const FeedbackHistoryPage = () => {
-  const { session } = useAuth();
-  const [feedbacks, setFeedbacks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { dashboardData, loading } = useDashboardData();
   const [ratingFilter, setRatingFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [summary, setSummary] = useState(null);
 
-  useEffect(() => {
-    let mounted = true;
-    const fetchFeedbacks = async () => {
-      if (!session?.access_token) return;
-      try {
-        setLoading(true);
-        const json = await feedbackService.getFeedbacks(session.access_token, ratingFilter);
-        if (mounted) {
-          setFeedbacks(json.feedbacks || []);
-          setSummary(json.summary || null);
-        }
-      } catch (err) {
-        if (mounted) setError(err.message || 'Failed to retrieve customer feedbacks.');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
+  const allFeedbacks = Array.isArray(dashboardData?.feedback?.feedbacks)
+    ? dashboardData.feedback.feedbacks
+    : [];
+  const summary = dashboardData?.feedback?.summary || null;
 
-    fetchFeedbacks();
-    return () => {
-      mounted = false;
-    };
-  }, [session, ratingFilter]);
+  // Filter feedbacks by selected rating tab from cached data
+  const ratingFilteredFeedbacks = ratingFilter === 'all'
+    ? allFeedbacks
+    : allFeedbacks.filter((fb) => fb && String(fb.rating) === String(ratingFilter));
 
   // Client-side search filter across customer message and topics
-  const filteredFeedbacks = feedbacks.filter((fb) => {
+  const filteredFeedbacks = ratingFilteredFeedbacks.filter((fb) => {
+    if (!fb) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
     const matchesMessage = fb.customerMessage?.toLowerCase().includes(q);
     const matchesReview = fb.generatedReview?.toLowerCase().includes(q);
-    const matchesTopics = fb.selectedTopics?.some((t) => t.toLowerCase().includes(q));
-    return matchesMessage || matchesReview || matchesTopics;
+    const matchesTopics = Array.isArray(fb.selectedTopics) && fb.selectedTopics.some((t) => typeof t === 'string' && t.toLowerCase().includes(q));
+    return Boolean(matchesMessage || matchesReview || matchesTopics);
   });
 
   return (
-    <DashboardLayout activeTab="feedback">
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -270,6 +249,5 @@ export const FeedbackHistoryPage = () => {
           </div>
         )}
       </div>
-    </DashboardLayout>
   );
 };

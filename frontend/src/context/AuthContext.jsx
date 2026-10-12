@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:5000');
 
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);

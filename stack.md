@@ -344,13 +344,19 @@ Potential options: - Razorpay - Stripe
 
 ## Deployment
 
-### Frontend
+### Full-Stack (Unified Cloudflare Worker)
 
--   Vercel
+-   Cloudflare Workers (with Static Assets `[assets]` & Node.js compatibility)
+-   Single-command deployment: `npm run deploy` (`wrangler deploy`)
+-   Frontend static bundle served directly from Cloudflare Edge CDN cache (0 Worker CPU calls)
+-   API endpoints (`/api/*`) handled by Cloudflare Worker Node bridge
+-   Automated retention cleanup powered by Cloudflare Cron Triggers (`[triggers] crons`)
 
-### Backend
+### Alternative / Multi-Platform
 
--   Render
+-   Frontend: Cloudflare Pages / Vercel
+-   Backend: Render / Railway / Node.js
+-   Database: Supabase (PostgreSQL via Supavisor pooler)
 
 ### Database
 

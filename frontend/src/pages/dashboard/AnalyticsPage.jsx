@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { DashboardLayout } from '../../components/dashboard/DashboardLayout';
+import React from 'react';
+import { useDashboardData } from '../../context/DashboardContext';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -27,43 +26,10 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
 export const AnalyticsPage = () => {
-  const { session } = useAuth();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { dashboardData } = useDashboardData();
 
-  useEffect(() => {
-    let mounted = true;
-    const fetchAnalytics = async () => {
-      if (!session?.access_token) return;
-      try {
-        setLoading(true);
-        const res = await fetch(`${API_URL}/api/analytics`, {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-
-        if (res.ok) {
-          const json = await res.json();
-          if (mounted) setData(json);
-        } else {
-          if (mounted) setError('Failed to load analytics data.');
-        }
-      } catch (err) {
-        if (mounted) setError(err.message);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    fetchAnalytics();
-    return () => {
-      mounted = false;
-    };
-  }, [session]);
-
+  const data = dashboardData?.analytics;
   const ratingDistribution = data?.ratingDistribution || [];
   const feedbackTrends = data?.feedbackTrends || [];
   const mostLikedTopics = data?.mostLikedTopics || [];
@@ -78,8 +44,7 @@ export const AnalyticsPage = () => {
   };
 
   return (
-    <DashboardLayout activeTab="analytics">
-      <div className="space-y-8">
+    <div className="space-y-8">
         {/* Top Header Summary */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -282,6 +247,5 @@ export const AnalyticsPage = () => {
           </Card>
         </div>
       </div>
-    </DashboardLayout>
   );
 };

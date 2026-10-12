@@ -1,6 +1,8 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { DashboardDataProvider } from './context/DashboardContext';
+import { DashboardLayout } from './components/dashboard/DashboardLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Navbar } from './components/ui/Navbar';
 import { Footer } from './components/ui/Footer';
@@ -102,57 +104,66 @@ export function App() {
               }
             />
 
-            {/* Protected Routes: Business Dashboard (Lazy) */}
+            {/* Protected Routes: Business Dashboard (Shared layout & in-memory cache) */}
             <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>
+                  <DashboardDataProvider>
+                    <DashboardLayout />
+                  </DashboardDataProvider>
+                </ProtectedRoute>
+              }
+            >
+              <Route
+                index
+                element={
                   <Suspense fallback={<PageLoader />}>
                     <DashboardOverviewPage />
                   </Suspense>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/analytics"
-              element={
-                <ProtectedRoute>
+                }
+              />
+              <Route
+                path="overview"
+                element={
+                  <Suspense fallback={<PageLoader />}>
+                    <DashboardOverviewPage />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="analytics"
+                element={
                   <Suspense fallback={<PageLoader />}>
                     <AnalyticsPage />
                   </Suspense>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/feedback"
-              element={
-                <ProtectedRoute>
+                }
+              />
+              <Route
+                path="feedback"
+                element={
                   <Suspense fallback={<PageLoader />}>
                     <FeedbackHistoryPage />
                   </Suspense>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/qr"
-              element={
-                <ProtectedRoute>
+                }
+              />
+              <Route
+                path="qr"
+                element={
                   <Suspense fallback={<PageLoader />}>
                     <QRManagementPage />
                   </Suspense>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard/business"
-              element={
-                <ProtectedRoute>
+                }
+              />
+              <Route
+                path="business"
+                element={
                   <Suspense fallback={<PageLoader />}>
                     <BusinessSettingsPage />
                   </Suspense>
-                </ProtectedRoute>
-              }
-            />
+                }
+              />
+            </Route>
 
             {/* Protected Routes: Admin Control Center (Lazy) */}
             <Route

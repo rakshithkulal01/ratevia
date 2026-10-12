@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { DashboardLayout } from '../../components/dashboard/DashboardLayout';
+import { useDashboardData } from '../../context/DashboardContext';
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -27,15 +27,19 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:5000');
 
 export const QRManagementPage = () => {
   const { session } = useAuth();
+  const { dashboardData, updateQR } = useDashboardData();
 
-  const [loading, setLoading] = useState(true);
-  const [business, setBusiness] = useState(null);
-  const [qrCode, setQrCode] = useState(null);
-  const [customerUrl, setCustomerUrl] = useState('');
+  const initialQR = dashboardData?.qr;
+  const initialBusiness = initialQR?.business || dashboardData?.business;
+
+  const [loading, setLoading] = useState(!initialQR);
+  const [business, setBusiness] = useState(initialBusiness || null);
+  const [qrCode, setQrCode] = useState(initialQR?.qrCode || null);
+  const [customerUrl, setCustomerUrl] = useState(initialQR?.customerUrl || '');
   const [copied, setCopied] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
@@ -43,7 +47,7 @@ export const QRManagementPage = () => {
   const [statusMessage, setStatusMessage] = useState(null);
 
   // Curated Branding Customization State (Instant Live Preview)
-  const [customBusinessName, setCustomBusinessName] = useState('');
+  const [customBusinessName, setCustomBusinessName] = useState(initialBusiness?.name || '');
   const [customTagline, setCustomTagline] = useState('Your experience matters 💙');
   const [badgeType, setBadgeType] = useState('sparkle');
   const [previewMode, setPreviewMode] = useState('sticker'); // 'sticker' | 'stand'
@@ -53,9 +57,29 @@ export const QRManagementPage = () => {
 
   const qrCanvasRef = useRef(null);
 
-  // Fetch active QR configuration
+  // Initialize or synchronize state when cached dashboard data is available
+  useEffect(() => {
+    if (initialQR) {
+      setBusiness(initialBusiness);
+      setCustomBusinessName(initialBusiness?.name || '');
+      setQrCode(initialQR.qrCode);
+      setCustomerUrl(initialQR.customerUrl);
+
+      if (initialBusiness?.businessType) {
+        const defaultAccent = getCategoryDefaultAccent(initialBusiness.businessType);
+        setSelectedAccent(defaultAccent);
+        const catConfig = getCategoryConfig(initialBusiness.businessType);
+        if (catConfig?.brandTheme?.tagline) {
+          setCustomTagline(catConfig.brandTheme.tagline);
+        }
+      }
+      setLoading(false);
+    }
+  }, [initialQR, initialBusiness]);
+
+  // Fetch active QR configuration only if not present in shared state
   const fetchQRData = async () => {
-    if (!session?.access_token) return;
+    if (!session?.access_token || initialQR) return;
 
     try {
       setLoading(true);
@@ -80,7 +104,6 @@ export const QRManagementPage = () => {
       setQrCode(data.qrCode);
       setCustomerUrl(data.customerUrl);
 
-      // Initialize default category accent and suggested tagline
       if (data.business?.businessType) {
         const defaultAccent = getCategoryDefaultAccent(data.business.businessType);
         setSelectedAccent(defaultAccent);
@@ -98,8 +121,10 @@ export const QRManagementPage = () => {
   };
 
   useEffect(() => {
-    fetchQRData();
-  }, [session]);
+    if (!initialQR) {
+      fetchQRData();
+    }
+  }, [session, initialQR]);
 
   // Copy customer review URL to clipboard
   const handleCopyLink = async () => {
@@ -130,6 +155,7 @@ export const QRManagementPage = () => {
       if (!res.ok) throw new Error(data.message || 'Failed to toggle QR status.');
 
       setQrCode(data.qrCode);
+      if (updateQR) updateQR(data.qrCode, customerUrl);
       setStatusMessage(data.message);
       setTimeout(() => setStatusMessage(null), 3000);
     } catch (err) {
@@ -161,6 +187,9 @@ export const QRManagementPage = () => {
       if (!res.ok) throw new Error(data.message || 'Failed to regenerate QR code.');
 
       setQrCode(data.qrCode);
+      const newUrl = data.customerUrl || customerUrl;
+      setCustomerUrl(newUrl);
+      if (updateQR) updateQR(data.qrCode, newUrl);
       setStatusMessage('QR code successfully regenerated.');
       setTimeout(() => setStatusMessage(null), 3000);
     } catch (err) {
@@ -211,7 +240,7 @@ export const QRManagementPage = () => {
   });
 
   return (
-    <DashboardLayout activeTab="qr code">
+    <div>
       {/* Print-specific stylesheet isolating the active preview for physical printing */}
       <style>{`
         @media print {
@@ -443,6 +472,6 @@ export const QRManagementPage = () => {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 };

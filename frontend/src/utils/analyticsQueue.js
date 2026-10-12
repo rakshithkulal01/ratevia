@@ -20,7 +20,7 @@ const STORAGE_KEY_PREFIX = 'ratevia_analytics_q_v1_';
 const LOCK_KEY_PREFIX = 'ratevia_analytics_lock_v1_';
 const LOCK_TIMEOUT_MS = 5000; // 5 seconds lock timeout
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:5000');
 
 // In-memory fallback storage if localStorage is blocked or throws
 const memoryStorage = new Map();

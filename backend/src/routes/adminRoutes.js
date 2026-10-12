@@ -304,9 +304,9 @@ router.get('/qr-requests/:id/download', (req, res, next) => {
         res.setHeader('Content-Disposition', `attachment; filename="${safeSlug}-ratevia-sticker.png"`);
         return res.send(buffer);
       } else if (stickerUrl.startsWith('/uploads/')) {
-        const __filename = fileURLToPath(import.meta.url);
-        const __dirname = path.dirname(__filename);
-        const localPath = path.join(__dirname, '../../uploads', stickerUrl.replace(/^\/uploads\//, ''));
+        const __filename = (typeof import.meta.url === 'string' && import.meta.url.startsWith('file:')) ? fileURLToPath(import.meta.url) : '';
+        const __dirname = __filename ? path.dirname(__filename) : process.cwd();
+        const localPath = path.join(__dirname, 'uploads', stickerUrl.replace(/^\/uploads\//, ''));
         if (fs.existsSync(localPath)) {
           return res.download(localPath, `${safeSlug}-ratevia-sticker.png`);
         }

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { usePlatformPrice } from '../../hooks/usePlatformPrice';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:5000');
 
 export const OnboardingPage = () => {
   const { session, user, signOut } = useAuth();
@@ -131,7 +131,7 @@ export const OnboardingPage = () => {
 
         <div className="pt-2 border-t border-border/50">
           <button
-            onClick={() => logout()}
+            onClick={() => signOut()}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             Log out of this account

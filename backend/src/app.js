@@ -10,6 +10,9 @@ import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 
 const app = express();
 
+// Trust reverse proxy (Cloudflare, Render, etc.) so req.ip and rate limiting use the real client IP
+app.set('trust proxy', 1);
+
 const isProduction = env.NODE_ENV === 'production';
 
 // HTTP security headers via Helmet
@@ -78,8 +81,8 @@ app.use(
   })
 );
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = (typeof import.meta.url === 'string' && import.meta.url.startsWith('file:')) ? fileURLToPath(import.meta.url) : '';
+const __dirname = __filename ? path.dirname(__filename) : process.cwd();
 
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));

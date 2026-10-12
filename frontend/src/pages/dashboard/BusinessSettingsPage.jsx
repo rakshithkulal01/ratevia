@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { DashboardLayout } from '../../components/dashboard/DashboardLayout';
+import { useDashboardData } from '../../context/DashboardContext';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -22,18 +22,33 @@ import { businessService } from '../../services/businessService';
 
 export const BusinessSettingsPage = () => {
   const { session } = useAuth();
-  const [business, setBusiness] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { dashboardData, updateBusiness } = useDashboardData();
+
+  const cachedBusiness = dashboardData?.business;
+
+  const [business, setBusiness] = useState(cachedBusiness || null);
+  const [loading, setLoading] = useState(!cachedBusiness);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
   // Form fields
-  const [name, setName] = useState('');
-  const [businessType, setBusinessType] = useState('CAFE');
-  const [googleReviewUrl, setGoogleReviewUrl] = useState('');
+  const [name, setName] = useState(cachedBusiness?.name || '');
+  const [businessType, setBusinessType] = useState(cachedBusiness?.businessType || 'CAFE');
+  const [googleReviewUrl, setGoogleReviewUrl] = useState(cachedBusiness?.googleReviewUrl || '');
 
   useEffect(() => {
+    if (cachedBusiness) {
+      setBusiness(cachedBusiness);
+      setName(cachedBusiness.name || '');
+      setBusinessType(cachedBusiness.businessType || 'CAFE');
+      setGoogleReviewUrl(cachedBusiness.googleReviewUrl || '');
+      setLoading(false);
+    }
+  }, [cachedBusiness]);
+
+  useEffect(() => {
+    if (cachedBusiness) return;
     let mounted = true;
     const loadBusiness = async () => {
       if (!session?.access_token) return;
@@ -55,7 +70,7 @@ export const BusinessSettingsPage = () => {
 
     loadBusiness();
     return () => { mounted = false; };
-  }, [session]);
+  }, [session, cachedBusiness]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -73,6 +88,7 @@ export const BusinessSettingsPage = () => {
       });
 
       setBusiness(json.business);
+      if (updateBusiness) updateBusiness(json.business);
       setSuccessMsg('Business settings successfully updated.');
       setTimeout(() => setSuccessMsg(null), 3000);
     } catch (err) {
@@ -85,8 +101,7 @@ export const BusinessSettingsPage = () => {
   const sub = business?.subscription;
 
   return (
-    <DashboardLayout activeTab="settings">
-      <div className="max-w-3xl space-y-6">
+    <div className="max-w-3xl space-y-6">
         <div>
           <h2 className="text-xl font-semibold text-foreground">Business Settings</h2>
           <p className="text-xs text-muted-foreground">
@@ -221,6 +236,5 @@ export const BusinessSettingsPage = () => {
           </div>
         </Card>
       </div>
-    </DashboardLayout>
   );
 };

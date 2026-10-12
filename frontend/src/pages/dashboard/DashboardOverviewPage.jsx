@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { DashboardLayout } from '../../components/dashboard/DashboardLayout';
+import { useDashboardData } from '../../context/DashboardContext';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -21,53 +21,11 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
 export const DashboardOverviewPage = () => {
-  const { session } = useAuth();
-  const [data, setData] = useState(null);
-  const [feedbacks, setFeedbacks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { dashboardData } = useDashboardData();
 
-  useEffect(() => {
-    let mounted = true;
-    const loadOverview = async () => {
-      if (!session?.access_token) return;
-      try {
-        setLoading(true);
-        const [analyticsRes, feedbackRes] = await Promise.all([
-          fetch(`${API_URL}/api/analytics`, {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          }),
-          fetch(`${API_URL}/api/feedback?limit=5`, {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          }),
-        ]);
-
-        if (analyticsRes.ok && feedbackRes.ok) {
-          const analyticsJson = await analyticsRes.json();
-          const feedbackJson = await feedbackRes.json();
-
-          if (mounted) {
-            setData(analyticsJson);
-            setFeedbacks(feedbackJson.feedbacks || []);
-          }
-        } else {
-          if (mounted) setError('Could not load dashboard data.');
-        }
-      } catch (err) {
-        if (mounted) setError(err.message);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    };
-
-    loadOverview();
-    return () => {
-      mounted = false;
-    };
-  }, [session]);
+  const data = dashboardData?.analytics;
+  const feedbacks = dashboardData?.feedback?.feedbacks?.slice(0, 5) || [];
 
   const overview = data?.overview || {
     totalQrScans: 0,
@@ -78,11 +36,10 @@ export const DashboardOverviewPage = () => {
     conversionRate: 0,
   };
 
-  const business = data?.business;
+  const business = dashboardData?.business || data?.business;
 
   return (
-    <DashboardLayout activeTab="overview">
-      <div className="space-y-8">
+    <div className="space-y-8">
         {/* KPI Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* Card 1: QR Scans */}
@@ -383,6 +340,5 @@ export const DashboardOverviewPage = () => {
           </div>
         </div>
       </div>
-    </DashboardLayout>
   );
 };
