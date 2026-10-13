@@ -14,10 +14,12 @@ function getPrismaClient() {
     const logs = isDev ? ['query', 'error', 'warn'] : ['error'];
 
     try {
+      const isRemote = connectionString.includes('supabase.com') || connectionString.includes('sslmode=') || !connectionString.includes('localhost');
       const pool = new pg.Pool({
         connectionString,
         max: 5,
         connectionTimeoutMillis: 10000,
+        ...(isRemote ? { ssl: { rejectUnauthorized: false } } : {}),
       });
       const adapter = new PrismaPg(pool);
       _client = new PrismaClient({ adapter, log: logs });
