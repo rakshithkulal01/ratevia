@@ -4,28 +4,47 @@ import { PrismaPg } from '@prisma/adapter-pg';
 
 let _client = null;
 let _currentConnectionString = null;
+let _currentPool = null;
 
 function getPrismaClient() {
   const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:dummy@localhost:5432/postgres';
 
   if (!_client || _currentConnectionString !== connectionString) {
+    if (_currentPool) {
+      try {
+        _currentPool.end().catch(() => {});
+      } catch {}
+    }
+
     _currentConnectionString = connectionString;
     const isDev = process.env.NODE_ENV === 'development';
     const logs = isDev ? ['query', 'error', 'warn'] : ['error'];
 
     try {
-      const isRemote = connectionString.includes('supabase.com') || connectionString.includes('sslmode=') || !connectionString.includes('localhost');
+      const isDirectSupabase = connectionString.includes('supabase');
       const pool = new pg.Pool({
         connectionString,
-        max: 5,
+        max: 10,
+        idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 10000,
-        ...(isRemote ? { ssl: { rejectUnauthorized: false } } : {}),
+        ...(isDirectSupabase ? { ssl: { rejectUnauthorized: false } } : {}),
       });
+
+      pool.on('error', (err) => {
+        console.warn('[pg.Pool Idle Client Error]:', err?.message || err);
+      });
+
+      _currentPool = pool;
       const adapter = new PrismaPg(pool);
       _client = new PrismaClient({ adapter, log: logs });
     } catch (err) {
       console.warn('[Prisma] Adapter initialization error:', err.message);
-      const fallbackPool = new pg.Pool({ connectionString: 'postgresql://postgres:dummy@localhost:5432/postgres' });
+      const fallbackPool = new pg.Pool({
+        connectionString: 'postgresql://postgres:dummy@localhost:5432/postgres',
+        max: 1,
+      });
+      fallbackPool.on('error', () => {});
+      _currentPool = fallbackPool;
       _client = new PrismaClient({ adapter: new PrismaPg(fallbackPool), log: logs });
     }
   }

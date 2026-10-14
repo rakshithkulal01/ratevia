@@ -17,6 +17,7 @@ export const feedbackLimiter = rateLimit({
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   message: createLimiterResponse('Too many feedback submissions from this network. Please wait a moment before trying again.'),
 });
 
@@ -29,6 +30,7 @@ export const businessRequestLimiter = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   message: createLimiterResponse('Too many business registration requests from this network. Please try again in an hour.'),
 });
 
@@ -41,6 +43,7 @@ export const qrRequestLimiter = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   message: createLimiterResponse('Too many QR design submissions from this network. Please try again in an hour.'),
 });
 
@@ -53,6 +56,7 @@ export const analyticsBatchLimiter = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   message: createLimiterResponse('Analytics reporting rate limit reached. Please wait before reporting new batches.'),
 });
 
@@ -65,5 +69,6 @@ export const publicQrLimiter = rateLimit({
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   message: createLimiterResponse('Too many requests. Please wait a moment before trying again.'),
 });

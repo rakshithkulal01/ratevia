@@ -13,6 +13,12 @@ const app = express();
 // Trust reverse proxy (Cloudflare, Render, etc.) so req.ip and rate limiting use the real client IP
 app.set('trust proxy', 1);
 
+// Disable HTTP keep-alive on responses to prevent virtual socket hanging in Cloudflare Node bridge
+app.use((req, res, next) => {
+  res.set('Connection', 'close');
+  next();
+});
+
 const isProduction = env.NODE_ENV === 'production';
 
 // HTTP security headers via Helmet
