@@ -3,7 +3,8 @@ main = "backend/src/worker.js"
 compatibility_date = "2026-08-04"
 compatibility_flags = [
   "nodejs_compat_v2",
-  "enable_nodejs_http_server_modules"
+  "enable_nodejs_http_server_modules",
+  "no_handle_cross_request_promise_resolution"
 ]
 
 [build]

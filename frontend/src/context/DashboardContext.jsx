@@ -76,6 +76,7 @@ export const DashboardDataProvider = ({ children }) => {
 
         const nextErrors = {};
         let businessData = null;
+        let pendingRequestData = null;
         let analyticsData = null;
         let feedbackData = null;
         let qrData = null;
@@ -83,7 +84,8 @@ export const DashboardDataProvider = ({ children }) => {
         // 1. Process Business profile
         if (businessRes.status === 'fulfilled') {
           businessData = businessRes.value.business;
-          if (!businessData) {
+          pendingRequestData = businessRes.value.pendingRequest || null;
+          if (!businessData && !pendingRequestData) {
             navigate('/onboarding');
             return;
           }
@@ -94,28 +96,28 @@ export const DashboardDataProvider = ({ children }) => {
         // 2. Process Analytics
         if (analyticsRes.status === 'fulfilled') {
           analyticsData = analyticsRes.value;
-        } else {
+        } else if (businessData) {
           nextErrors.analytics = analyticsRes.reason?.message || 'Failed to load analytics data.';
         }
 
         // 3. Process Feedback
         if (feedbackRes.status === 'fulfilled') {
           feedbackData = feedbackRes.value;
-        } else {
+        } else if (businessData) {
           nextErrors.feedback = feedbackRes.reason?.message || 'Failed to load feedback history.';
         }
 
         // 4. Process QR configuration
         if (qrRes.status === 'fulfilled') {
           qrData = qrRes.value;
-        } else {
+        } else if (businessData) {
           nextErrors.qr = qrRes.reason?.message || 'Failed to load QR settings.';
         }
 
         setErrors(nextErrors);
 
-        // If primary business fails, record overall error
-        if (nextErrors.business && !businessData) {
+        // If primary business fails and no pending request, record overall error
+        if (nextErrors.business && !businessData && !pendingRequestData) {
           setError(nextErrors.business);
         } else {
           setError(null);
@@ -123,6 +125,7 @@ export const DashboardDataProvider = ({ children }) => {
 
         setDashboardData({
           business: businessData,
+          pendingRequest: pendingRequestData,
           analytics: analyticsData,
           feedback: feedbackData,
           qr: qrData,

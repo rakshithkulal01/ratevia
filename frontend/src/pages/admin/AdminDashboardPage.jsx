@@ -102,43 +102,45 @@ export const AdminDashboardPage = ({ defaultTab = 'requests' }) => {
         console.warn('Could not fetch admin me profile:', meErr);
       }
 
-      const perms = adminMe?.permissions || [];
+      const perms = adminMe?.permissions?.length
+        ? adminMe.permissions
+        : (user?.role === 'ADMIN' ? ['VIEW_DASHBOARD', 'MANAGE_BUSINESSES', 'MANAGE_BUSINESS_REQUESTS', 'MANAGE_QR_REQUESTS', 'MANAGE_ADMINS', 'MANAGE_PRICING', 'VIEW_ANALYTICS', 'MANAGE_QR'] : []);
       const canDashboard = perms.includes('VIEW_DASHBOARD');
       const canBiz = perms.includes('MANAGE_BUSINESSES');
       const canBizReq = perms.includes('MANAGE_BUSINESS_REQUESTS');
       const canQRReq = perms.includes('MANAGE_QR_REQUESTS');
       const canAdmins = perms.includes('MANAGE_ADMINS');
 
-      // 2. Fetch permitted data in parallel
-      const fetchPromises = [];
-
+      // 2. Fetch primary metrics and requests first
+      const primaryPromises = [];
       if (canDashboard) {
-        fetchPromises.push(
-          adminService.getStats(session.access_token).then((d) => setStats(d.stats)).catch((e) => console.warn(e))
-        );
-      }
-      if (canBiz) {
-        fetchPromises.push(
-          adminService.getBusinesses(session.access_token).then((d) => setBusinesses(d.businesses || [])).catch((e) => console.warn(e))
-        );
-      }
-      if (canBizReq) {
-        fetchPromises.push(
-          adminService.getBusinessRequests(session.access_token).then((d) => setRequests(d.requests || [])).catch((e) => console.warn(e))
+        primaryPromises.push(
+          adminService.getStats(session.access_token).then((d) => setStats(d.stats)).catch((e) => console.warn('Admin stats error:', e))
         );
       }
       if (canQRReq) {
-        fetchPromises.push(
-          adminService.getQRRequests(session.access_token).then((d) => setQrRequests(d.requests || [])).catch((e) => console.warn(e))
+        primaryPromises.push(
+          adminService.getQRRequests(session.access_token).then((d) => setQrRequests(d.requests || [])).catch((e) => console.warn('Admin qr requests error:', e))
         );
       }
-      if (canAdmins) {
-        fetchPromises.push(
-          adminService.getAdmins(session.access_token).then((d) => setAdmins(d.admins || [])).catch((e) => console.warn(e))
+      if (canBizReq) {
+        primaryPromises.push(
+          adminService.getBusinessRequests(session.access_token).then((d) => setRequests(d.requests || [])).catch((e) => console.warn('Admin business requests error:', e))
         );
       }
 
-      await Promise.all(fetchPromises);
+      await Promise.allSettled(primaryPromises);
+      setLoading(false);
+
+      // 3. Stagger remaining directory datasets to avoid connection pool exhaustion
+      if (canBiz) {
+        await new Promise((r) => setTimeout(r, 200));
+        adminService.getBusinesses(session.access_token).then((d) => setBusinesses(d.businesses || [])).catch((e) => console.warn('Admin businesses error:', e));
+      }
+      if (canAdmins) {
+        await new Promise((r) => setTimeout(r, 200));
+        adminService.getAdmins(session.access_token).then((d) => setAdmins(d.admins || [])).catch((e) => console.warn('Admin admins error:', e));
+      }
     } catch (err) {
       if (err.status === 403) {
         setError('FORBIDDEN');

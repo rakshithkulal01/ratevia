@@ -28,6 +28,8 @@ export const LoginPage = () => {
     if (session && user) {
       if (user.role === 'ADMIN') {
         navigate('/admin', { replace: true });
+      } else if (localStorage.getItem('ratevia_pending_qr_design')) {
+        navigate('/customize-qr', { replace: true });
       } else {
         navigate(from === '/admin' ? '/dashboard' : from, { replace: true });
       }

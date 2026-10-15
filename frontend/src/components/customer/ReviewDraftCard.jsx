@@ -24,10 +24,10 @@ export const ReviewDraftCard = ({
   if (!rating || !generatedReview) return null;
 
   const isPositive = rating >= 4;
-  const currentLength = (generatedReview || '').length;
-  const isOverLimit = currentLength > 200;
-  const isNearLimit = currentLength >= 190 && !isOverLimit;
-  const isInvalid = isOverLimit || currentLength === 0;
+  const wordCount = (generatedReview || '').trim().split(/\s+/).filter(Boolean).length;
+  const isOverLimit = wordCount > 500;
+  const isNearLimit = wordCount >= 480 && !isOverLimit;
+  const isInvalid = isOverLimit || wordCount === 0;
 
   return (
     <Card className="p-6 space-y-4 border-accent/30 bg-accent/5">
@@ -51,8 +51,7 @@ export const ReviewDraftCard = ({
 
       <div className="space-y-1">
         <textarea
-          rows={4}
-          maxLength={200}
+          rows={5}
           value={generatedReview}
           onChange={onChangeReview}
           className={`w-full p-3 text-xs rounded-md border bg-white text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 leading-relaxed ${
@@ -60,7 +59,7 @@ export const ReviewDraftCard = ({
               ? 'border-red-500 focus:ring-red-500'
               : 'border-border focus:ring-accent'
           }`}
-          placeholder="Your review draft..."
+          placeholder="Your review draft (up to 500 words)..."
         />
         <div className="flex items-center justify-between text-xs pt-0.5">
           {hasCustomEdits ? (
@@ -79,12 +78,12 @@ export const ReviewDraftCard = ({
                 : 'text-muted-foreground'
             }`}
           >
-            {currentLength}/200
+            {wordCount}/500 words
           </span>
         </div>
         {isOverLimit && (
           <p className="text-[11px] text-red-600 font-medium">
-            Review text cannot exceed 200 characters. Please shorten your review to continue.
+            Review text cannot exceed 500 words. Please shorten your review to continue.
           </p>
         )}
       </div>

@@ -72,6 +72,7 @@ export function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/qr-customize" element={<PublicQRCustomizePage />} />
+            <Route path="/customize-qr" element={<PublicQRCustomizePage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/contact" element={<ContactPage />} />
 

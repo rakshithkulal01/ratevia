@@ -3,28 +3,24 @@ import { env } from './env.js';
 
 let supabaseAdmin = null;
 
-if (env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY) {
-  supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-}
-
 export const getSupabaseAdmin = () => {
-  if (!supabaseAdmin) {
-    if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error(
-        'Supabase backend credentials missing: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in backend/.env'
-      );
-    }
-    supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+  const url = process.env.SUPABASE_URL || env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !key) {
+    throw new Error(
+      'Supabase backend credentials missing: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in backend/.env or worker environment'
+    );
+  }
+
+  if (!supabaseAdmin || supabaseAdmin._url !== url) {
+    supabaseAdmin = createClient(url, key, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
       },
     });
+    supabaseAdmin._url = url;
   }
   return supabaseAdmin;
 };

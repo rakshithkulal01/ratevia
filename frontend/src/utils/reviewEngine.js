@@ -103,14 +103,41 @@ const CONSTRUCTIVE_TOPIC_PHRASES = {
 };
 
 /**
- * Safely enforces a hard maximum length limit (default 200 characters)
+ * Count total words in text
+ *
+ * @param {string} text
+ * @returns {number}
+ */
+export function countWords(text) {
+  if (!text || typeof text !== 'string') return 0;
+  const matches = text.trim().match(/\S+/g);
+  return matches ? matches.length : 0;
+}
+
+/**
+ * Safely trim text to word limit (default 500 words)
+ *
+ * @param {string} text - Review text
+ * @param {number} limit - Maximum allowed words (default 500)
+ * @returns {string} Text trimmed to word limit
+ */
+export function safeTrimToWordLimit(text, limit = 500) {
+  if (!text || typeof text !== 'string') return '';
+  const trimmed = text.trim();
+  const words = trimmed.match(/\S+/g);
+  if (!words || words.length <= limit) return trimmed;
+  return words.slice(0, limit).join(' ');
+}
+
+/**
+ * Safely enforces a hard maximum length limit (default 5000 characters)
  * without awkwardly chopping words or sentences when possible.
  *
  * @param {string} text - Review text
- * @param {number} limit - Maximum allowed character length (default 200)
+ * @param {number} limit - Maximum allowed character length (default 5000)
  * @returns {string} Safe review text guaranteed to be <= limit characters
  */
-export function safeTrimToLimit(text, limit = 200) {
+export function safeTrimToLimit(text, limit = 5000) {
   if (!text || typeof text !== 'string') return '';
   const trimmed = text.trim();
   if (trimmed.length <= limit) return trimmed;
@@ -145,7 +172,7 @@ export function safeTrimToLimit(text, limit = 200) {
 
 /**
  * Generate authentic, category-aware review text based on rating, business category, selected topics, and customer message.
- * Strictly guarantees that returned review text never exceeds 200 characters.
+ * Strictly guarantees that returned review text never exceeds 500 words.
  *
  * @param {Object} params
  * @param {string} params.businessCategory - One of the 11 supported categories
@@ -155,7 +182,7 @@ export function safeTrimToLimit(text, limit = 200) {
  * @param {string[]} params.selectedTopics - Array of topic names
  * @param {string} params.customerMessage - Optional written customer notes
  * @param {number} params.variationIndex - Counter for cycling phrasing on regenerate
- * @returns {string} Generated review draft (<= 200 characters)
+ * @returns {string} Generated review draft (<= 500 words)
  */
 export function generateReviewText({
   businessCategory,
@@ -190,7 +217,7 @@ export function generateReviewText({
         variant: v,
       });
 
-  return safeTrimToLimit(rawReview, 200);
+  return safeTrimToWordLimit(rawReview, 500);
 }
 
 function generatePositiveReview({ categoryConfig, businessName, rating, selectedTopics, customerMessage, variant }) {
@@ -277,13 +304,13 @@ function generatePositiveReview({ categoryConfig, businessName, rating, selected
 
   for (const cand of candidates) {
     const text = cand.filter(Boolean).join(' ').trim();
-    if (text.length <= 200) {
+    if (countWords(text) <= 500) {
       return text;
     }
   }
 
   const defaultText = candidates[0].filter(Boolean).join(' ').trim();
-  return safeTrimToLimit(defaultText, 200);
+  return safeTrimToWordLimit(defaultText, 500);
 }
 
 function generateConstructiveReview({ categoryConfig, businessName, rating, selectedTopics, customerMessage, variant }) {
@@ -358,13 +385,13 @@ function generateConstructiveReview({ categoryConfig, businessName, rating, sele
 
   for (const cand of candidates) {
     const text = cand.filter(Boolean).join(' ').trim();
-    if (text.length <= 200) {
+    if (countWords(text) <= 500) {
       return text;
     }
   }
 
   const defaultText = candidates[0].filter(Boolean).join(' ').trim();
-  return safeTrimToLimit(defaultText, 200);
+  return safeTrimToWordLimit(defaultText, 500);
 }
 
 export const generateDeterministicReview = generateReviewText;

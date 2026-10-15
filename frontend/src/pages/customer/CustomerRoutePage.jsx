@@ -9,7 +9,7 @@ import { AlertCircle, Clock, Loader2, MessageSquare } from 'lucide-react';
 import { qrService } from '../../services/qrService';
 import { feedbackService } from '../../services/feedbackService';
 import { getSessionId } from '../../utils/session';
-import { generateReviewText, safeTrimToLimit } from '../../utils/reviewEngine';
+import { generateReviewText, safeTrimToLimit, countWords, safeTrimToWordLimit } from '../../utils/reviewEngine';
 import { getCategoryConfig } from '../../config/businessCategories';
 import { recordSession } from '../../utils/analyticsQueue';
 
@@ -176,11 +176,10 @@ export const CustomerRoutePage = () => {
     setCopyError(null);
   };
 
-  // Review Edit Handler - Hard capped at 200 characters
+  // Review Edit Handler - Up to 500 words
   const handleReviewChange = (e) => {
     const rawVal = e.target.value || '';
-    const cappedVal = rawVal.slice(0, 200);
-    setGeneratedReview(cappedVal);
+    setGeneratedReview(rawVal);
     setHasCustomEdits(true);
     setCopySuccess(false);
     setCopyError(null);
@@ -203,7 +202,7 @@ export const CustomerRoutePage = () => {
     setActionError(null);
 
     const textToSubmit = (overrideReviewText !== undefined ? overrideReviewText : generatedReview || '').trim();
-    const safeReview = textToSubmit.length > 200 ? safeTrimToLimit(textToSubmit, 200) : textToSubmit;
+    const safeReview = countWords(textToSubmit) > 500 ? safeTrimToWordLimit(textToSubmit, 500) : textToSubmit;
 
     try {
       const data = await feedbackService.submitFeedback({
@@ -244,14 +243,14 @@ export const CustomerRoutePage = () => {
       return;
     }
 
-    // Strict 200-character enforcement & safe handling before copy / navigation
-    if (reviewTextToCopy.length > 200) {
-      reviewTextToCopy = safeTrimToLimit(reviewTextToCopy, 200);
+    // Strict 500-word limit enforcement & safe handling before copy / navigation
+    if (countWords(reviewTextToCopy) > 500) {
+      reviewTextToCopy = safeTrimToWordLimit(reviewTextToCopy, 500);
       setGeneratedReview(reviewTextToCopy);
     }
 
-    if (reviewTextToCopy.length > 200 || !reviewTextToCopy) {
-      setActionError('Review text must be 200 characters or fewer.');
+    if (countWords(reviewTextToCopy) > 500 || !reviewTextToCopy) {
+      setActionError('Review text must be 500 words or fewer.');
       return;
     }
 

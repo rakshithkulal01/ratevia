@@ -1,11 +1,13 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import SEOHead from '../../components/seo/SEOHead';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card';
 
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
+import { GoogleIcon } from '../../components/ui/GoogleIcon';
+import { useAuth } from '../../context/AuthContext';
 import { BrandedQRCard } from '../../components/dashboard/BrandedQRCard';
 import { RateviaStickerPreview } from '../../components/dashboard/RateviaStickerPreview';
 import { QRCustomizationPanel } from '../../components/dashboard/QRCustomizationPanel';
@@ -36,9 +38,15 @@ import {
   MapPin,
   Clock,
   HelpCircle,
+  Lock,
+  LogIn,
+  X,
+  UserCheck,
 } from 'lucide-react';
 
 export const PublicQRCustomizePage = () => {
+  const { session, user, signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
+  const navigate = useNavigate();
   const { formattedPrice, price: currentPrice, loading: priceLoading } = usePlatformPrice();
 
   // Form Fields
@@ -62,8 +70,86 @@ export const PublicQRCustomizePage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [validationError, setValidationError] = useState(null);
   const [submittedData, setSubmittedData] = useState(null);
+  const [restoredDraft, setRestoredDraft] = useState(false);
   const stickerCanvasRef = useRef(null);
   const isSubmittingRef = useRef(false);
+
+  // Auth Modal State
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authName, setAuthName] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authGoogleLoading, setAuthGoogleLoading] = useState(false);
+  const [authError, setAuthError] = useState(null);
+
+  // Save current design draft into localStorage
+  const saveDesignDraft = () => {
+    try {
+      const draft = {
+        businessName,
+        tagline,
+        category,
+        contactName,
+        phone,
+        email,
+        city,
+        destinationUrl,
+        badgeType,
+        selectedAccent,
+        selectedStyle,
+        selectedMessage,
+      };
+      localStorage.setItem('ratevia_pending_qr_design', JSON.stringify(draft));
+    } catch (e) {
+      console.warn('Could not save draft to localStorage:', e);
+    }
+  };
+
+  // Restore saved design draft on mount if available
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('ratevia_pending_qr_design');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.businessName) setBusinessName(parsed.businessName);
+        if (parsed.tagline) setTagline(parsed.tagline);
+        if (parsed.category) setCategory(parsed.category);
+        if (parsed.contactName) setContactName(parsed.contactName);
+        if (parsed.phone) setPhone(parsed.phone);
+        if (parsed.email) setEmail(parsed.email);
+        if (parsed.city) setCity(parsed.city);
+        if (parsed.destinationUrl) setDestinationUrl(parsed.destinationUrl);
+        if (parsed.badgeType) setBadgeType(parsed.badgeType);
+        if (parsed.selectedAccent) setSelectedAccent(parsed.selectedAccent);
+        if (parsed.selectedStyle) setSelectedStyle(parsed.selectedStyle);
+        if (parsed.selectedMessage) setSelectedMessage(parsed.selectedMessage);
+        setRestoredDraft(true);
+      }
+    } catch (err) {
+      console.warn('Failed to parse saved QR design:', err);
+    }
+  }, []);
+
+  // Sync user details when authenticated
+  useEffect(() => {
+    if (user) {
+      if (!email && user.email) setEmail(user.email);
+      if (!contactName && (user.name || user.user_metadata?.name)) {
+        setContactName(user.name || user.user_metadata?.name);
+      }
+    }
+  }, [user]);
+
+  // When opening modal, pre-populate auth fields
+  useEffect(() => {
+    if (showAuthModal) {
+      if (email && !authEmail) setAuthEmail(email);
+      if (contactName && !authName) setAuthName(contactName);
+      setAuthError(null);
+    }
+  }, [showAuthModal]);
 
   const categoryOptions = useMemo(() => getCategoryOptions(), []);
   const categoryConfig = useMemo(() => getCategoryConfig(category), [category]);
@@ -97,64 +183,61 @@ export const PublicQRCustomizePage = () => {
     return buildCustomerQRUrl(slug);
   }, [businessName]);
 
-  // Form Validation & Submission
-  const handleSubmit = async (e) => {
+  // Auth action handlers for the modal
+  const handleModalGoogleLogin = async () => {
+    try {
+      setAuthError(null);
+      setAuthGoogleLoading(true);
+      saveDesignDraft();
+      await signInWithGoogle();
+    } catch (err) {
+      setAuthError(err.message || 'Google sign-in failed. Please try again.');
+      setAuthGoogleLoading(false);
+    }
+  };
+
+  const handleModalEmailAuth = async (e) => {
     e.preventDefault();
-    if (isSubmittingRef.current || submitting) return;
+    if (!authEmail.trim() || !authEmail.includes('@')) {
+      setAuthError('Please provide a valid email address.');
+      return;
+    }
+    if (!authPassword || authPassword.length < 6) {
+      setAuthError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    try {
+      setAuthError(null);
+      setAuthLoading(true);
+      saveDesignDraft();
+
+      if (authMode === 'login') {
+        await signInWithEmail(authEmail.trim(), authPassword);
+        setEmail(authEmail.trim());
+        setShowAuthModal(false);
+        await executeSubmission();
+      } else {
+        await signUpWithEmail(authEmail.trim(), authPassword, authName.trim() || contactName.trim());
+        setEmail(authEmail.trim());
+        setShowAuthModal(false);
+        await executeSubmission();
+      }
+    } catch (err) {
+      console.error('[PublicQRCustomize] Modal auth error:', err);
+      setAuthError(err.message || 'Authentication failed. Please verify your credentials.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Perform backend submission
+  const executeSubmission = async () => {
     isSubmittingRef.current = true;
     setSubmitting(true);
     setValidationError(null);
 
-    // 1. Validate fields
-    if (!businessName.trim() || businessName.trim().length < 2) {
-      setValidationError('Please enter a business name (at least 2 characters).');
-      isSubmittingRef.current = false;
-      setSubmitting(false);
-      return;
-    }
-    if (!contactName.trim() || contactName.trim().length < 2) {
-      setValidationError('Please enter a contact person name.');
-      isSubmittingRef.current = false;
-      setSubmitting(false);
-      return;
-    }
-    if (!phone.trim() || phone.replace(/\D/g, '').length < 10) {
-      setValidationError('Please provide a valid 10-digit phone number.');
-      isSubmittingRef.current = false;
-      setSubmitting(false);
-      return;
-    }
-    if (!email.trim() || !email.includes('@')) {
-      setValidationError('Please provide a valid email address.');
-      isSubmittingRef.current = false;
-      setSubmitting(false);
-      return;
-    }
-    if (!destinationUrl.trim()) {
-      setValidationError('Please provide a Website or Destination URL for your QR code.');
-      isSubmittingRef.current = false;
-      setSubmitting(false);
-      return;
-    }
-
-    // 2. Validate URL protocol
     try {
-      const parsedUrl = new URL(destinationUrl.trim());
-      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-        setValidationError('URL must begin with http:// or https://');
-        isSubmittingRef.current = false;
-        setSubmitting(false);
-        return;
-      }
-    } catch {
-      setValidationError('Please enter a valid URL (e.g. https://yourwebsite.com or https://g.page/r/your-id)');
-      isSubmittingRef.current = false;
-      setSubmitting(false);
-      return;
-    }
-
-    try {
-
       // Render the complete customized Ratevia sticker PNG
       let stickerImageDataUrl = null;
       try {
@@ -192,7 +275,11 @@ export const PublicQRCustomizePage = () => {
       };
 
       const res = await publicService.submitQRRequest(payload);
+      try {
+        localStorage.removeItem('ratevia_pending_qr_design');
+      } catch {}
       setSubmittedData(res.request);
+      setShowAuthModal(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       console.error('[PublicQRCustomize] Submit error:', err);
@@ -201,6 +288,57 @@ export const PublicQRCustomizePage = () => {
       isSubmittingRef.current = false;
       setSubmitting(false);
     }
+  };
+
+  // Form Validation & Submission Trigger
+  const handleSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (isSubmittingRef.current || submitting) return;
+    setValidationError(null);
+
+    // 1. Validate fields
+    if (!businessName.trim() || businessName.trim().length < 2) {
+      setValidationError('Please enter a business name (at least 2 characters).');
+      return;
+    }
+    if (!contactName.trim() || contactName.trim().length < 2) {
+      setValidationError('Please enter a contact person name.');
+      return;
+    }
+    if (!phone.trim() || phone.replace(/\D/g, '').length < 10) {
+      setValidationError('Please provide a valid 10-digit phone number.');
+      return;
+    }
+    if (!email.trim() || !email.includes('@')) {
+      setValidationError('Please provide a valid email address.');
+      return;
+    }
+    if (!destinationUrl.trim()) {
+      setValidationError('Please provide a Website or Destination URL for your QR code.');
+      return;
+    }
+
+    // 2. Validate URL protocol
+    try {
+      const parsedUrl = new URL(destinationUrl.trim());
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        setValidationError('URL must begin with http:// or https://');
+        return;
+      }
+    } catch {
+      setValidationError('Please enter a valid URL (e.g. https://yourwebsite.com or https://g.page/r/your-id)');
+      return;
+    }
+
+    // 3. User must be logged in to submit request
+    if (!session || !user) {
+      saveDesignDraft();
+      setShowAuthModal(true);
+      return;
+    }
+
+    // 4. Authenticated -> execute submission directly
+    await executeSubmission();
   };
 
   // ----------------------------------------------------
@@ -300,6 +438,31 @@ export const PublicQRCustomizePage = () => {
           Design a custom, physical tabletop QR stand tailored for your business. See your live preview in real time and submit for official Ratevia verification.
         </p>
       </div>
+
+      {restoredDraft && (
+        <div className="max-w-3xl mx-auto p-4 rounded-xl border border-sky-200 bg-sky-50/80 text-sky-900 text-xs sm:text-sm flex items-center justify-between gap-3 animate-in fade-in">
+          <div className="flex items-center gap-2.5">
+            <Sparkles className="h-4 w-4 text-accent shrink-0" />
+            <span>
+              {user ? (
+                <>Restored your saved QR design! You're signed in as <strong>{user.email}</strong>.</>
+              ) : (
+                <>Your previous QR design draft has been restored. Finish customizing and submit when ready.</>
+              )}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              try { localStorage.removeItem('ratevia_pending_qr_design'); } catch {}
+              setRestoredDraft(false);
+            }}
+            className="text-xs text-sky-700 hover:text-sky-900 underline shrink-0 font-medium"
+          >
+            Clear draft
+          </button>
+        </div>
+      )}
 
       {validationError && (
         <div className="max-w-3xl mx-auto p-4 rounded-xl border border-red-200 bg-red-50 text-red-800 text-xs sm:text-sm flex items-center gap-3 animate-in fade-in">
@@ -490,12 +653,18 @@ export const PublicQRCustomizePage = () => {
                 variant="primary"
                 size="lg"
                 disabled={submitting}
-                className="rounded-md flex-shrink-0 text-sm font-semibold h-12 px-6 shadow-md"
+                className="rounded-md flex-shrink-0 text-sm font-semibold h-12 px-6 shadow-md transition-all"
               >
                 {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Submitting Design...
+                  </>
+                ) : !session ? (
+                  <>
+                    <Lock className="mr-2 h-4 w-4" />
+                    Sign In & Submit Request
+                    <ArrowRight className="ml-2 h-4 w-4" />
                   </>
                 ) : (
                   <>
@@ -594,6 +763,176 @@ export const PublicQRCustomizePage = () => {
           </Card>
         </div>
       </form>
+
+      {/* Auth Prompt Modal (Prompts user to sign in before submission) */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Top decorative accent bar */}
+            <div className="h-1.5 w-full bg-gradient-to-r from-accent via-indigo-500 to-sky-400" />
+
+            {/* Close modal button */}
+            <button
+              type="button"
+              onClick={() => setShowAuthModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              title="Close and keep editing"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="p-6 sm:p-7 space-y-5">
+              {/* Header */}
+              <div className="space-y-1.5 text-center sm:text-left">
+                <Badge variant="outline" className="text-accent bg-accent/5 border-accent/20 font-mono text-[11px] mb-1">
+                  Account Required
+                </Badge>
+                <h3 className="font-display text-2xl font-bold text-slate-900">
+                  Sign In to Submit Your Request
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Your custom design for <strong>"{businessName || 'Your Business'}"</strong> is saved! Please sign in or create an account to link it to your dashboard.
+                </p>
+              </div>
+
+              {authError && (
+                <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-800 text-xs flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+                  <span>{authError}</span>
+                </div>
+              )}
+
+              {/* One-Click Google Sign In */}
+              <button
+                type="button"
+                onClick={handleModalGoogleLogin}
+                disabled={authGoogleLoading || authLoading}
+                className="w-full flex items-center justify-center gap-3 py-2.5 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold shadow-xs transition-all active:scale-[0.99] disabled:opacity-50"
+              >
+                {authGoogleLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-slate-600" />
+                ) : (
+                  <GoogleIcon className="h-5 w-5" />
+                )}
+                <span>Continue with Google</span>
+              </button>
+
+              {/* Divider */}
+              <div className="relative flex items-center justify-center">
+                <div className="border-t border-slate-200 w-full" />
+                <span className="bg-white px-3 text-[11px] font-mono uppercase text-slate-400 shrink-0">
+                  Or use email
+                </span>
+              </div>
+
+              {/* Mode Switcher Tabs */}
+              <div className="flex p-0.5 rounded-lg bg-slate-100 border border-slate-200 text-xs">
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode('login'); setAuthError(null); }}
+                  className={`flex-1 py-1.5 rounded-md font-semibold transition-all ${
+                    authMode === 'login'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode('signup'); setAuthError(null); }}
+                  className={`flex-1 py-1.5 rounded-md font-semibold transition-all ${
+                    authMode === 'signup'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Create Account
+                </button>
+              </div>
+
+              {/* Email Form */}
+              <form onSubmit={handleModalEmailAuth} className="space-y-3.5">
+                {authMode === 'signup' && (
+                  <div>
+                    <label className="block text-xs font-medium text-slate-700 mb-1">Your Full Name</label>
+                    <Input
+                      type="text"
+                      placeholder="e.g. Rahul Sharma"
+                      value={authName}
+                      onChange={(e) => setAuthName(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Email Address</label>
+                  <Input
+                    type="email"
+                    placeholder="you@company.com"
+                    value={authEmail}
+                    onChange={(e) => setAuthEmail(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-slate-700">Password</label>
+                    {authMode === 'login' && (
+                      <Link
+                        to="/login"
+                        className="text-[11px] text-accent hover:underline"
+                        onClick={() => saveDesignDraft()}
+                      >
+                        Forgot?
+                      </Link>
+                    )}
+                  </div>
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    value={authPassword}
+                    onChange={(e) => setAuthPassword(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="w-full h-11 text-sm font-semibold rounded-xl shadow-md"
+                  disabled={authLoading || authGoogleLoading}
+                >
+                  {authLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {authMode === 'login' ? 'Signing in & submitting...' : 'Creating account & submitting...'}
+                    </>
+                  ) : (
+                    <>
+                      {authMode === 'login' ? 'Sign In & Submit Request' : 'Create Account & Submit Request'}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </form>
+
+              <div className="pt-2 text-center text-xs text-slate-500 flex items-center justify-center gap-1">
+                <span>Want to change your design?</span>
+                <button
+                  type="button"
+                  onClick={() => setShowAuthModal(false)}
+                  className="text-accent font-semibold hover:underline"
+                >
+                  Keep Editing
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

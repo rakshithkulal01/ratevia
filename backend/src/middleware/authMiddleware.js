@@ -93,6 +93,7 @@ export const authMiddleware = async (req, res, next) => {
       return res.status(500).json({
         error: 'DatabaseError',
         message: 'Failed to query user records from database',
+        details: dbError.message,
       });
     }
 

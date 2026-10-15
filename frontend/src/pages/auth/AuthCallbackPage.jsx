@@ -80,6 +80,12 @@ export const AuthCallbackPage = () => {
             console.error('[AuthCallback] Backend sync non-fatal warning:', syncErr.message);
           }
 
+          // If user was in the process of submitting a custom QR design, restore them there
+          if (localStorage.getItem('ratevia_pending_qr_design')) {
+            navigate('/customize-qr', { replace: true });
+            return;
+          }
+
           // Default redirect for new / onboarding users
           navigate('/onboarding', { replace: true });
         }

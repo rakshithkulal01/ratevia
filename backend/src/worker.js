@@ -2,6 +2,7 @@ import { httpServerHandler } from 'cloudflare:node';
 import app from './app.js';
 import { runDataRetentionCleanup } from './utils/cleanup.js';
 import { runStickerRetentionCleanup } from './services/stickerRetentionService.js';
+import { requestContext } from './config/prisma.js';
 
 if (typeof process !== 'undefined' && process.on) {
   process.on('uncaughtException', (err) => {
@@ -15,10 +16,8 @@ if (typeof process !== 'undefined' && process.on) {
 // Bind Express to internal port for Cloudflare Node bridge
 const PORT = 8080;
 const server = app.listen(PORT);
-server.keepAliveTimeout = 0;
-server.headersTimeout = 0;
 
-const httpHandler = httpServerHandler({ port: PORT });
+const httpHandler = httpServerHandler(server);
 
 export default {
   /**
@@ -31,6 +30,7 @@ export default {
         process.env[key] = value;
       }
     }
+    // In Cloudflare Workers, always route database queries through Hyperdrive
     if (env.HYPERDRIVE?.connectionString) {
       process.env.DATABASE_URL = env.HYPERDRIVE.connectionString;
     }
@@ -39,22 +39,30 @@ export default {
 
     // Route API endpoints and uploaded assets through Express
     if (url.pathname.startsWith('/api') || url.pathname.startsWith('/uploads')) {
-      try {
-        return await httpHandler.fetch(request, env, ctx);
-      } catch (err) {
-        console.error('[Worker API Error]:', err);
-        return new Response(
-          JSON.stringify({
-            error: 'WorkerExecutionError',
-            message: err.message,
-            stack: err.stack,
-          }),
-          {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
+      const store = new Map();
+      return requestContext.run(store, async () => {
+        try {
+          return await httpHandler.fetch(request, env, ctx);
+        } catch (err) {
+          console.error('[Worker API Error]:', err);
+          return new Response(
+            JSON.stringify({
+              error: 'WorkerExecutionError',
+              message: err.message,
+              stack: err.stack,
+            }),
+            {
+              status: 500,
+              headers: { 'Content-Type': 'application/json' },
+            }
+          );
+        } finally {
+          const pool = store.get('pool');
+          if (pool) {
+            ctx.waitUntil(pool.end().catch(() => {}));
           }
-        );
-      }
+        }
+      });
     }
 
     // Delegate SPA client routes and static assets to Cloudflare Assets
@@ -74,6 +82,11 @@ export default {
    * Runs automated 30-day feedback and 25-day sticker image retention purges.
    */
   async scheduled(controller, env, ctx) {
+    for (const [key, value] of Object.entries(env)) {
+      if (typeof value === 'string') {
+        process.env[key] = value;
+      }
+    }
     if (env.HYPERDRIVE?.connectionString) {
       process.env.DATABASE_URL = env.HYPERDRIVE.connectionString;
     }

@@ -152,14 +152,33 @@ router.get('/', authMiddleware, async (req, res, next) => {
       },
     });
 
-    if (!business) {
-      return res.status(200).json({
-        business: null,
+    // If no active business, check if the user has a submitted QR request pending admin review
+    let pendingRequest = null;
+    if (!business && req.user.email) {
+      pendingRequest = await prisma.businessRequest.findFirst({
+        where: {
+          email: { equals: req.user.email, mode: 'insensitive' },
+          status: { in: ['NEW', 'CONTACTED', 'APPROVED'] },
+        },
+        orderBy: { createdAt: 'desc' },
       });
     }
 
     return res.status(200).json({
-      business,
+      business: business || null,
+      pendingRequest: pendingRequest
+        ? {
+            id: pendingRequest.id,
+            referenceId: `RV-${pendingRequest.id.slice(0, 8).toUpperCase()}`,
+            businessName: pendingRequest.businessName,
+            businessType: pendingRequest.businessType,
+            destinationUrl: pendingRequest.destinationUrl,
+            quotedPrice: pendingRequest.quotedPrice ? Number(pendingRequest.quotedPrice) : null,
+            status: pendingRequest.status,
+            createdAt: pendingRequest.createdAt,
+            stickerImageUrl: pendingRequest.stickerImageUrl,
+          }
+        : null,
     });
   } catch (error) {
     next(error);

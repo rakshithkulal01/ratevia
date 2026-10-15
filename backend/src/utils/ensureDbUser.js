@@ -11,6 +11,18 @@ export const ensureDbUser = async (req) => {
     where: { supabaseUserId: req.user.supabaseUserId },
   });
 
+  if (!dbUser && req.user.email) {
+    dbUser = await prisma.user.findFirst({
+      where: { email: { equals: req.user.email, mode: 'insensitive' } },
+    });
+    if (dbUser && dbUser.supabaseUserId !== req.user.supabaseUserId) {
+      dbUser = await prisma.user.update({
+        where: { id: dbUser.id },
+        data: { supabaseUserId: req.user.supabaseUserId },
+      });
+    }
+  }
+
   if (!dbUser) {
     const name = req.user.metadata?.name || req.user.metadata?.full_name || null;
     dbUser = await prisma.user.create({

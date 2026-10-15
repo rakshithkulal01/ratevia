@@ -81,6 +81,19 @@ export async function apiRequest(
     }
   }
 
+  // If 5xx server error or 429 occurs, retry once with short backoff for transient edge recovery
+  if ((response.status >= 500 || response.status === 429) && !_isRetry) {
+    await new Promise((r) => setTimeout(r, 300));
+    return await apiRequest(endpoint, {
+      method,
+      body,
+      token,
+      headers,
+      _isRetry: true,
+      ...customOptions,
+    });
+  }
+
   // Handle empty responses (like 204 No Content)
   if (response.status === 204) {
     return null;

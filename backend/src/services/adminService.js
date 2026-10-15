@@ -9,28 +9,44 @@ export const adminService = {
    */
   getAdminPlatformStats: async () => {
     const [
-      totalBusinesses,
-      activeBusinesses,
-      suspendedBusinesses,
+      businessGroups,
       totalUsers,
       totalFeedbacks,
       qrScansAggregate,
-      totalRequests,
-      newRequests,
-      contactedRequests,
+      requestGroups,
     ] = await Promise.all([
-      prisma.business.count(),
-      prisma.business.count({ where: { isActive: true } }),
-      prisma.business.count({ where: { isActive: false } }),
+      prisma.business.groupBy({
+        by: ['isActive'],
+        _count: { _all: true },
+      }),
       prisma.user.count(),
       prisma.feedback.count(),
       prisma.dailyBusinessAnalytics.aggregate({
         _sum: { qrScans: true },
       }),
-      prisma.businessRequest.count(),
-      prisma.businessRequest.count({ where: { status: 'NEW' } }),
-      prisma.businessRequest.count({ where: { status: 'CONTACTED' } }),
+      prisma.businessRequest.groupBy({
+        by: ['status'],
+        _count: { _all: true },
+      }),
     ]);
+
+    let totalBusinesses = 0;
+    let activeBusinesses = 0;
+    let suspendedBusinesses = 0;
+    for (const b of businessGroups) {
+      totalBusinesses += b._count._all;
+      if (b.isActive) activeBusinesses += b._count._all;
+      else suspendedBusinesses += b._count._all;
+    }
+
+    let totalRequests = 0;
+    let newRequests = 0;
+    let contactedRequests = 0;
+    for (const r of requestGroups) {
+      totalRequests += r._count._all;
+      if (r.status === 'NEW') newRequests += r._count._all;
+      else if (r.status === 'CONTACTED') contactedRequests += r._count._all;
+    }
 
     return {
       totalBusinesses,
@@ -96,7 +112,7 @@ export const adminService = {
       where.status = statusFilter.toUpperCase();
     }
 
-    return prisma.businessRequest.findMany({
+    const requests = await prisma.businessRequest.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       include: {
@@ -116,6 +132,12 @@ export const adminService = {
         },
       },
     });
+
+    return requests.map((r) => ({
+      ...r,
+      referenceId: `RV-${r.id.slice(0, 8).toUpperCase()}`,
+      quotedPrice: r.quotedPrice ? Number(r.quotedPrice) : null,
+    }));
   },
 
   /**

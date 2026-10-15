@@ -20,6 +20,8 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 
+import { PendingApprovalView } from './PendingApprovalView';
+
 const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:5000');
 
 const DashboardLayoutContext = createContext(false);
@@ -38,6 +40,7 @@ export const DashboardLayout = ({ children, activeTab, title }) => {
 
   // Local fallback if used standalone without DashboardDataProvider
   const [localBusinessData, setLocalBusinessData] = useState(null);
+  const [localPendingRequest, setLocalPendingRequest] = useState(null);
   const [localLoading, setLocalLoading] = useState(false);
   const [localError, setLocalError] = useState(null);
 
@@ -59,11 +62,12 @@ export const DashboardLayout = ({ children, activeTab, title }) => {
           if (res.ok) {
             const data = await res.json();
             if (mounted) {
-              if (!data.business) {
+              if (!data.business && !data.pendingRequest) {
                 navigate('/onboarding');
                 return;
               }
               setLocalBusinessData(data.business);
+              setLocalPendingRequest(data.pendingRequest);
             }
           } else {
             if (mounted) setLocalError('Failed to load business profile.');
@@ -82,6 +86,7 @@ export const DashboardLayout = ({ children, activeTab, title }) => {
   }, [session, user, navigate, dashboardData, contextLoading, contextError]);
 
   const businessData = dashboardData?.business || localBusinessData;
+  const pendingRequest = dashboardData?.pendingRequest || localPendingRequest;
   const loading = dashboardData !== null ? contextLoading : (contextLoading || localLoading);
   const error = contextError || localError;
 
@@ -157,17 +162,21 @@ export const DashboardLayout = ({ children, activeTab, title }) => {
               <div>
                 <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-1">
                   <Building2 className="h-3.5 w-3.5" />
-                  <span>BUSINESS DASHBOARD</span>
+                  <span>{businessData ? 'BUSINESS DASHBOARD' : 'REQUEST STATUS'}</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <h1 className="font-display text-2xl sm:text-3xl text-foreground font-normal">
-                    {businessData ? businessData.name : 'Business Dashboard'}
+                    {businessData ? businessData.name : pendingRequest ? pendingRequest.businessName : 'Business Dashboard'}
                   </h1>
-                  {businessData && (
+                  {businessData ? (
                     <Badge variant="outline" className="text-xs uppercase font-mono">
                       {businessData.businessType}
                     </Badge>
-                  )}
+                  ) : pendingRequest ? (
+                    <Badge variant="outline" className="text-xs border-amber-300 text-amber-800 bg-amber-100 font-medium">
+                      Under Review
+                    </Badge>
+                  ) : null}
                 </div>
               </div>
 
@@ -186,37 +195,45 @@ export const DashboardLayout = ({ children, activeTab, title }) => {
               )}
             </div>
 
-            {/* Sub Navigation Tabs */}
-            <nav className="flex items-center gap-1 mt-6 -mb-6 overflow-x-auto no-scrollbar border-t border-border pt-2">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = (computedTab || '').toLowerCase() === item.label.toLowerCase();
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                      isActive
-                        ? 'border-accent text-accent'
-                        : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
+            {/* Sub Navigation Tabs (Only rendered when business is fully active) */}
+            {businessData && (
+              <nav className="flex items-center gap-1 mt-6 -mb-6 overflow-x-auto no-scrollbar border-t border-border pt-2">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = (computedTab || '').toLowerCase() === item.label.toLowerCase();
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                        isActive
+                          ? 'border-accent text-accent'
+                          : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
           </div>
         </header>
 
         {/* Main Page Content */}
         <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-10">
-          {loading && !businessData ? (
+          {loading && !businessData && !pendingRequest ? (
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 className="h-8 w-8 text-accent animate-spin mb-3" />
               <p className="text-sm text-muted-foreground">Loading dashboard information...</p>
             </div>
+          ) : !businessData && pendingRequest ? (
+            <PendingApprovalView
+              pendingRequest={pendingRequest}
+              onRefresh={() => (refetch ? refetch(true) : window.location.reload())}
+              refreshing={loading}
+            />
           ) : error && !businessData ? (
             <Card className="p-8 text-center border-red-200 bg-red-50/50">
               <AlertTriangle className="h-8 w-8 text-red-600 mx-auto mb-3" />

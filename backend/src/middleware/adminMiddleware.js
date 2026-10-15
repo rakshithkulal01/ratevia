@@ -66,16 +66,18 @@ async function resolveAdminProfile(req, res, next) {
       });
     }
 
-    // Update lastLoginAt timestamp periodically (max once every 5 minutes)
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    if (!adminProfile.lastLoginAt || adminProfile.lastLoginAt < fiveMinutesAgo) {
-      try {
-        await prisma.adminUser.update({
-          where: { id: adminProfile.id },
-          data: { lastLoginAt: new Date() },
-        });
-      } catch (err) {
-        console.warn('[AdminMiddleware] Failed to update lastLoginAt:', err?.message || err);
+    // Update lastLoginAt timestamp only on /me profile request to avoid database row locks during parallel queries
+    if (req.path === '/me') {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      if (!adminProfile.lastLoginAt || adminProfile.lastLoginAt < fiveMinutesAgo) {
+        try {
+          await prisma.adminUser.update({
+            where: { id: adminProfile.id },
+            data: { lastLoginAt: new Date() },
+          });
+        } catch (err) {
+          console.warn('[AdminMiddleware] Failed to update lastLoginAt:', err?.message || err);
+        }
       }
     }
 
